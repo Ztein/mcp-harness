@@ -1,6 +1,6 @@
 # T016 — byt deprecerad streamablehttp_client → streamable_http_client
 
-**Status:** TODO · **Fas:** 1 · **Prioritet:** P2 · **Beror på:** —
+**Status:** DONE · **Fas:** 1 · **Prioritet:** P2 · **Beror på:** —
 
 ## Varför
 
@@ -18,9 +18,9 @@ testerna; bekräfta att signaturen är densamma; gör testsviten varningsfri (ev
 
 ## Definition of Done
 
-- [ ] Ingen `DeprecationWarning` från `streamablehttp_client` i testkörningen.
-- [ ] CLI:t ansluter fortfarande (verifierat mot test-MCP över HTTP, T044).
-- [ ] Övervägt `filterwarnings = error` så framtida deprecations failar högljutt.
+- [x] Ingen `DeprecationWarning` från `streamablehttp_client` i testkörningen.
+- [x] CLI:t ansluter fortfarande (verifierat mot test-MCP över HTTP, T044).
+- [x] Övervägt `filterwarnings = error` så framtida deprecations failar högljutt.
 
 ## Testfall (skriv först)
 

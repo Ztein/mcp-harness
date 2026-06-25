@@ -46,6 +46,10 @@ addopts = "-ra"
 markers = [
     "real_endpoint: kräver en riktig LLM/MCP-endpoint (hoppas i CI; körs lokalt med skarp .env)",
 ]
+# Fail-hard på deprecations (princip 3) — så en deprecerad mcp-/stdlib-väg syns
+# som ett rött test, inte en tyst varning. (Externa ResourceWarnings o.dyl. lämnas
+# som varningar; de är inte vår kontraktsyta.)
+filterwarnings = ["error::DeprecationWarning"]
 
 [tool.mypy]
 python_version = "3.11"
