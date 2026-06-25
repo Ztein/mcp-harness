@@ -20,6 +20,9 @@ dev = [
     "pytest-asyncio>=0.24",
     "mypy>=1.11",
     "pre-commit>=3.7",
+    # Pinnad minor så CI och lokalt formaterar identiskt (format-regler kan
+    # ändras mellan minors).
+    "ruff>=0.14,<0.15",
 ]
 
 [build-system]
