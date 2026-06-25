@@ -29,6 +29,7 @@ from mcp.client.session import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
 from .llm import chat_completion, llm_model
+from .tools import apply_allowlist, to_openai_tools
 
 DEFAULT_SYSTEM = (
     "Du är en assistent med verktyg mot Azure DevOps. Använd verktygen när det behövs "
@@ -87,29 +88,11 @@ async def main(system: str, tr: TextIO, tools_allow: set[str] | None = None) -> 
         ClientSession(r, w) as session,
     ):
         await session.initialize()
-        mcp_tools = (await session.list_tools()).tools
-        if tools_allow is not None:
-            # Per-assistent-scoping (T178): visa bara en delmängd av verktygen för
-            # modellen, så scoping-effekten kan valideras via terminalen utan Intric.
-            # Okänt namn failar högljutt (princip 2) — ingen tyst tom allowlist.
-            available = {t.name for t in mcp_tools}
-            unknown = tools_allow - available
-            if unknown:
-                raise SystemExit(
-                    f"--tools: okända verktyg {sorted(unknown)}; finns: {sorted(available)}"
-                )
-            mcp_tools = [t for t in mcp_tools if t.name in tools_allow]
-        oai_tools = [
-            {
-                "type": "function",
-                "function": {
-                    "name": t.name,
-                    "description": t.description or "",
-                    "parameters": t.inputSchema,
-                },
-            }
-            for t in mcp_tools
-        ]
+        # Per-assistent-scoping (PRD §11): visa bara en delmängd av verktygen för
+        # modellen. Okänt namn failar högljutt (princip 3). Menyn modellen ser
+        # speglar exakt allowlisten. Se tools.py för de rena funktionerna.
+        mcp_tools = apply_allowlist((await session.list_tools()).tools, tools_allow)
+        oai_tools = to_openai_tools(mcp_tools)
         print(f"Ansluten: {url} — {len(mcp_tools)} verktyg, modell {llm_model()}.")
         print(f"Systemprompt: {len(system)} tecken.")
         print("Skriv ditt meddelande (/tools, /reset, /quit).")

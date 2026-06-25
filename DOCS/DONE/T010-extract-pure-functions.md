@@ -1,6 +1,6 @@
 # T010 — bryt ut rena funktioner (schema-konvertering, allowlist)
 
-**Status:** TODO · **Fas:** 1 · **Prioritet:** P1 · **Beror på:** T002
+**Status:** DONE · **Fas:** 1 · **Prioritet:** P1 · **Beror på:** T002
 
 ## Varför
 
