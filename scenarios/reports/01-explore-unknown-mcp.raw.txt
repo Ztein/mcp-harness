@@ -1,0 +1,34 @@
+$ /Users/joelstenberg/Documents/mcp-harness/.venv/bin/python3 -m mcp_harness.cli --system /Users/joelstenberg/Documents/mcp-harness/scenarios/system.md --transcript /Users/joelstenberg/Documents/mcp-harness/scenarios/reports/01-explore-unknown-mcp.transcript.md
+--- STDIN ---
+Hej! Vad kan du hjälpa mig med? Vilka verktyg har du?
+Kan du eka tillbaka exakt texten: hej världen
+Vad blev resultatet av det förra anropet?
+
+--- STDOUT ---
+Transkript: /Users/joelstenberg/Documents/mcp-harness/scenarios/reports/01-explore-unknown-mcp.transcript.md
+Ansluten: http://127.0.0.1:8765/mcp — 4 verktyg, modell google/gemma-4-31B-it.
+Systemprompt: 436 tecken.
+Skriv ditt meddelande (/tools, /reset, /quit).
+
+> 
+Hej! Jag är en hjälpsam assistent i din terminal. Jag kan hjälpa dig med att svara på frågor, analysera text och utföra specifika uppgifter med hjälp av mina verktyg.
+
+Just nu har jag tillgång till följande verktyg:
+- `echo`: För att skriva ut text.
+- `multi_block`, `boom` och `structured`: Specialiserade funktioner för specifika systemoperationer.
+
+Vad kan jag hjälpa dig med idag?
+
+>   ⚙ echo({"text": "hej världen"})
+
+hej världen
+
+> 
+Resultatet av det förra anropet var: "hej världen".
+
+> Hej då.
+
+--- STDERR ---
+  LLM-anrop misslyckades (försök 1/3): TimeoutError: The read operation timed out — väntar 1s
+
+--- EXIT 0 ---

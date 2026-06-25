@@ -1,0 +1,19 @@
+$ /Users/joelstenberg/Documents/mcp-harness/.venv/bin/python3 -m mcp_harness.cli --system /Users/joelstenberg/Documents/mcp-harness/scenarios/system.md --transcript /Users/joelstenberg/Documents/mcp-harness/scenarios/reports/02-tool-choice-scoping.A.transcript.md
+--- STDIN ---
+Kan du eka tillbaka texten: testorden
+
+--- STDOUT ---
+Transkript: /Users/joelstenberg/Documents/mcp-harness/scenarios/reports/02-tool-choice-scoping.A.transcript.md
+Ansluten: http://127.0.0.1:8765/mcp — 4 verktyg, modell google/gemma-4-31B-it.
+Systemprompt: 436 tecken.
+Skriv ditt meddelande (/tools, /reset, /quit).
+
+>   ⚙ echo({"text": "testorden"})
+
+testorden
+
+> Hej då.
+
+--- STDERR ---
+
+--- EXIT 0 ---

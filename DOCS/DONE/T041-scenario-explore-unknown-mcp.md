@@ -1,6 +1,6 @@
 # T041 — seed-scenario: utforska en okänd MCP
 
-**Status:** DOING · **Fas:** E2E · **Prioritet:** P1 · **Beror på:** T040
+**Status:** DONE · **Fas:** E2E · **Prioritet:** P1 · **Beror på:** T040
 
 ## Varför
 

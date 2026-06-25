@@ -1,0 +1,26 @@
+$ /Users/joelstenberg/Documents/mcp-harness/.venv/bin/python3 -m mcp_harness.cli --system /Users/joelstenberg/Documents/mcp-harness/scenarios/system.md --transcript /Users/joelstenberg/Documents/mcp-harness/scenarios/reports/03-fail-loudly.transcript.md
+--- STDIN ---
+Anropa verktyget boom och berätta exakt vad som händer.
+Anropa verktyget multi_block och återge allt det returnerar, ord för ord.
+
+--- STDOUT ---
+Transkript: /Users/joelstenberg/Documents/mcp-harness/scenarios/reports/03-fail-loudly.transcript.md
+Ansluten: http://127.0.0.1:8765/mcp — 4 verktyg, modell google/gemma-4-31B-it.
+Systemprompt: 436 tecken.
+Skriv ditt meddelande (/tools, /reset, /quit).
+
+>   ⚙ boom({})
+    Error executing tool boom: avsiktligt fel
+
+Jag anropade verktyget `boom` och det resulterade i ett felmeddelande: "Error executing tool boom: avsiktligt fel".
+
+>   ⚙ multi_block({})
+
+block-A
+block-B
+
+> Hej då.
+
+--- STDERR ---
+
+--- EXIT 0 ---

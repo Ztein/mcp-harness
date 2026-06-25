@@ -1,6 +1,6 @@
 # T040 — E2E-scenarioformat + agent-driven körprocess
 
-**Status:** DOING · **Fas:** E2E · **Prioritet:** P0 · **Beror på:** T022, T020, T044
+**Status:** DONE · **Fas:** E2E · **Prioritet:** P0 · **Beror på:** T022, T020, T044
 
 ## Varför
 
