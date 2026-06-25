@@ -61,7 +61,10 @@ async def test_plain_text_turn(fake_llm: FakeLLM, connected_session: Session) ->
     async with connected_session as session:
         messages: list[dict[str, Any]] = [{"role": "user", "content": "hej"}]
         events = await run_turn(
-            session=session, llm=real_llm, messages=messages, oai_tools=await _tools(session)
+            call_tool=session.call_tool,
+            llm=real_llm,
+            messages=messages,
+            oai_tools=await _tools(session),
         )
     assert len(events) == 1
     assert isinstance(events[0], AssistantText)
@@ -74,7 +77,10 @@ async def test_single_tool_call_then_text(fake_llm: FakeLLM, connected_session: 
     async with connected_session as session:
         messages: list[dict[str, Any]] = [{"role": "user", "content": "eka hej"}]
         events = await run_turn(
-            session=session, llm=real_llm, messages=messages, oai_tools=await _tools(session)
+            call_tool=session.call_tool,
+            llm=real_llm,
+            messages=messages,
+            oai_tools=await _tools(session),
         )
     assert [type(e).__name__ for e in events] == ["ToolCall", "ToolResult", "AssistantText"]
     tc, tr, at = events
@@ -90,7 +96,10 @@ async def test_chained_tool_calls(fake_llm: FakeLLM, connected_session: Session)
     async with connected_session as session:
         messages: list[dict[str, Any]] = [{"role": "user", "content": "två"}]
         events = await run_turn(
-            session=session, llm=real_llm, messages=messages, oai_tools=await _tools(session)
+            call_tool=session.call_tool,
+            llm=real_llm,
+            messages=messages,
+            oai_tools=await _tools(session),
         )
     assert [type(e).__name__ for e in events] == [
         "ToolCall",
@@ -107,7 +116,10 @@ async def test_tool_error_is_event_not_crash(fake_llm: FakeLLM, connected_sessio
     async with connected_session as session:
         messages: list[dict[str, Any]] = [{"role": "user", "content": "spräng"}]
         events = await run_turn(
-            session=session, llm=real_llm, messages=messages, oai_tools=await _tools(session)
+            call_tool=session.call_tool,
+            llm=real_llm,
+            messages=messages,
+            oai_tools=await _tools(session),
         )
     tr = events[1]
     assert isinstance(tr, ToolResult) and tr.is_error is True
@@ -122,7 +134,10 @@ async def test_full_args_preserved(fake_llm: FakeLLM, connected_session: Session
     async with connected_session as session:
         messages: list[dict[str, Any]] = [{"role": "user", "content": "stora args"}]
         events = await run_turn(
-            session=session, llm=real_llm, messages=messages, oai_tools=await _tools(session)
+            call_tool=session.call_tool,
+            llm=real_llm,
+            messages=messages,
+            oai_tools=await _tools(session),
         )
     tc = events[0]
     assert isinstance(tc, ToolCall)
@@ -135,7 +150,9 @@ async def test_llm_error_is_turn_error_not_crash(connected_session: Session) -> 
 
     async with connected_session as session:
         messages: list[dict[str, Any]] = [{"role": "user", "content": "x"}]
-        events = await run_turn(session=session, llm=boom_llm, messages=messages, oai_tools=[])
+        events = await run_turn(
+            call_tool=session.call_tool, llm=boom_llm, messages=messages, oai_tools=[]
+        )
     assert len(events) == 1
     assert isinstance(events[0], TurnError)
     assert "LLM nere" in events[0].message
@@ -148,7 +165,7 @@ async def test_tool_call_cap_trips(fake_llm: FakeLLM, connected_session: Session
     async with connected_session as session:
         messages: list[dict[str, Any]] = [{"role": "user", "content": "loopa"}]
         events = await run_turn(
-            session=session,
+            call_tool=session.call_tool,
             llm=real_llm,
             messages=messages,
             oai_tools=await _tools(session),

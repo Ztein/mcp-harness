@@ -20,6 +20,7 @@ import asyncio
 import json
 import os
 import sys
+from contextlib import AsyncExitStack
 from datetime import datetime
 from pathlib import Path
 from typing import Any, TextIO
@@ -30,11 +31,18 @@ from mcp.client.streamable_http import (  # type: ignore[attr-defined]  # create
     streamable_http_client,
 )
 
+from .config import ServerConfig, load_servers
 from .engine import DEFAULT_MAX_TOOL_CALLS, LlmFn, RunSummary, run_turn, tally_turn
 from .events import AssistantText, Event, ToolCall, ToolResult, TurnError, UserTurn
 from .jsonl import JsonlSink
 from .llm import chat_completion, llm_model
-from .tools import apply_allowlist, check_expected_tools, to_openai_tools, tools_fingerprint
+from .tools import (
+    aggregate_tools,
+    apply_allowlist,
+    check_expected_tools,
+    to_openai_tools,
+    tools_fingerprint,
+)
 from .transcript import TranscriptSink
 
 DEFAULT_SYSTEM = (
@@ -109,9 +117,30 @@ def _llm_params() -> dict[str, Any] | None:
         return None
 
 
+async def _connect_all(
+    stack: AsyncExitStack, servers: list[ServerConfig]
+) -> tuple[dict[str, ClientSession], list[tuple[str, list[Any]]]]:
+    """Anslut till alla servrar och returnera (session per namn, verktyg per server)."""
+    sessions: dict[str, ClientSession] = {}
+    per_server: list[tuple[str, list[Any]]] = []
+    for srv in servers:
+        http_client = await stack.enter_async_context(
+            create_mcp_http_client(headers={"Authorization": f"Bearer {srv.key}"})
+        )
+        r, w, _ = await stack.enter_async_context(
+            streamable_http_client(srv.url, http_client=http_client)
+        )
+        session = await stack.enter_async_context(ClientSession(r, w))
+        await session.initialize()
+        sessions[srv.name] = session
+        per_server.append((srv.name, list((await session.list_tools()).tools)))
+    return sessions, per_server
+
+
 async def main(
     system: str,
     transcript: TranscriptSink,
+    servers: list[ServerConfig],
     tools_allow: set[str] | None = None,
     *,
     llm: LlmFn = _llm_message,
@@ -119,35 +148,40 @@ async def main(
     expect_tools: set[str] | None = None,
     max_tool_calls: int = DEFAULT_MAX_TOOL_CALLS,
 ) -> RunSummary:
-    url, key = os.environ["MCP_URL"], os.environ["MCP_KEY"]
-    async with (
-        create_mcp_http_client(headers={"Authorization": f"Bearer {key}"}) as http_client,
-        streamable_http_client(url, http_client=http_client) as (r, w, _),
-        ClientSession(r, w) as session,
-    ):
-        await session.initialize()
-        # Per-assistent-scoping (PRD §11): menyn modellen ser speglar exakt
-        # allowlisten; okänt namn failar hårt (princip 3). Se tools.py.
-        mcp_tools = apply_allowlist((await session.list_tools()).tools, tools_allow)
-        # Fail-hard mot stale server: avvikelse från förväntad meny stoppar körningen
-        # innan ett enda LLM-anrop görs (PRD §11, T021).
+    async with AsyncExitStack() as stack:
+        sessions, per_server = await _connect_all(stack, servers)
+        # Aggregera menyn över alla servrar; namn-krock failar hårt (PRD §6.2).
+        all_tools, owner = aggregate_tools(per_server)
+        # Per-assistent-scoping (PRD §11): menyn modellen ser speglar exakt allowlisten.
+        mcp_tools = apply_allowlist(all_tools, tools_allow)
+        # Fail-hard mot stale server (PRD §11, T021) innan ett enda LLM-anrop.
         if expect_tools is not None:
             check_expected_tools(mcp_tools, expect_tools)
         fingerprint = tools_fingerprint(mcp_tools)
         oai_tools = to_openai_tools(mcp_tools)
         names = sorted(t.name for t in mcp_tools)
-        print(f"Ansluten: {url} — {len(mcp_tools)} verktyg, modell {llm_model()}.")
+
+        async def call_tool(name: str, args: dict[str, Any]) -> Any:
+            # Routa till den server som äger verktyget (T030).
+            return await sessions[owner[name]].call_tool(name, args)
+
+        servers_desc = ", ".join(f"{s.name}({s.url})" for s in servers)
+        print(
+            f"Ansluten: {len(servers)} server(rar) [{servers_desc}] — "
+            f"{len(mcp_tools)} verktyg, modell {llm_model()}."
+        )
         print(f"Verktyg: {', '.join(names)}")
         print(f"Fingeravtryck: {fingerprint}")
         print(f"Systemprompt: {len(system)} tecken.")
         print("Skriv ditt meddelande (/tools, /reset, /quit).")
 
         if jsonl is not None:
-            # Självbeskrivande körning (PRD §11): modell, params, server, meny + fingeravtryck.
+            # Självbeskrivande körning (PRD §11): modell, params, servrar, meny + fingeravtryck.
             jsonl.write_header(
                 model=llm_model(),
                 params=_llm_params(),
-                mcp_url=url,
+                mcp_url=",".join(s.url for s in servers),
+                servers=[s.name for s in servers],
                 tools=names,
                 tools_fingerprint=fingerprint,
                 system_chars=len(system),
@@ -180,7 +214,7 @@ async def main(
             if jsonl is not None:
                 jsonl.write(user_event)
             events = await run_turn(
-                session=session,
+                call_tool=call_tool,
                 llm=llm,
                 messages=messages,
                 oai_tools=oai_tools,
@@ -229,6 +263,11 @@ def cli() -> None:
         help=f"Tak på verktygsanrop per tur (backstop mot loopande modell). "
         f"Default {DEFAULT_MAX_TOOL_CALLS}.",
     )
+    parser.add_argument(
+        "--config",
+        help="JSON-fil med flera MCP-servrar ({'servers':[{name,url,key}]}). "
+        "Default: en server via MCP_URL/MCP_KEY.",
+    )
     args = parser.parse_args()
     tools_allow = {t.strip() for t in args.tools.split(",") if t.strip()} if args.tools else None
     expect_tools = (
@@ -236,6 +275,13 @@ def cli() -> None:
         if args.expect_tools
         else None
     )
+    if args.config:
+        servers = load_servers(args.config)
+    else:
+        mcp_url, mcp_key = os.environ.get("MCP_URL"), os.environ.get("MCP_KEY")
+        if not mcp_url or not mcp_key:
+            raise SystemExit("❌ MCP_URL/MCP_KEY saknas — sätt dem eller använd --config.")
+        servers = [ServerConfig(name="default", url=mcp_url, key=mcp_key)]
     fh = _open_transcript(args.transcript)
     jsonl_fh = open(args.jsonl, "a", encoding="utf-8") if args.jsonl else None
     jsonl_sink = JsonlSink(jsonl_fh) if jsonl_fh is not None else None
@@ -244,6 +290,7 @@ def cli() -> None:
             main(
                 _load_system(args.system),
                 TranscriptSink(fh),
+                servers,
                 tools_allow,
                 jsonl=jsonl_sink,
                 expect_tools=expect_tools,

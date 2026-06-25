@@ -17,7 +17,8 @@ versionen bumpas.
 | `type` | `"run_header"` | |
 | `model` | str | Modellsträng. |
 | `params` | obj \| null | Extra LLM-params (LLM_PARAMS), t.ex. `{"temperature":0}`. |
-| `mcp_url` | str | Ansluten MCP-server. |
+| `mcp_url` | str | Ansluten MCP-server (komma-separerad om flera). |
+| `servers` | str[] | Namn på alla anslutna servrar (T030). |
 | `tools` | str[] | Verktygsmenyn modellen ser (efter allowlist/scoping). |
 | `tools_fingerprint` | str | Stabil hash av menyn (namn+beskrivning+schema) — fångar stale server. |
 | `system_chars` | int | Systempromptens längd i tecken. |

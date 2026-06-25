@@ -47,6 +47,26 @@ def apply_allowlist(tools: list[Tool], allow: set[str] | None) -> list[Tool]:
     return [t for t in tools if t.name in allow]
 
 
+def aggregate_tools(per_server: list[tuple[str, list[Tool]]]) -> tuple[list[Tool], dict[str, str]]:
+    """Slå ihop verktyg från flera servrar till en meny (PRD §6.2).
+
+    Returnerar (aggregerade verktyg, {verktygsnamn: servernamn}). En namn-krock
+    failar hårt med båda servrarna namngivna — aldrig tyst överskuggning
+    (princip 3)."""
+    tools: list[Tool] = []
+    owner: dict[str, str] = {}
+    for server_name, server_tools in per_server:
+        for t in server_tools:
+            if t.name in owner:
+                raise SystemExit(
+                    f"verktygs-namnkrock: '{t.name}' finns i både '{owner[t.name]}' "
+                    f"och '{server_name}' — ge servrarna distinkta verktyg eller koppla in färre."
+                )
+            owner[t.name] = server_name
+            tools.append(t)
+    return tools, owner
+
+
 def tools_fingerprint(tools: list[Tool]) -> str:
     """Stabil hash av verktygsmenyn (namn + beskrivning + inputSchema).
 
