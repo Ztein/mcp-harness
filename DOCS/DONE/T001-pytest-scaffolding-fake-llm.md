@@ -1,6 +1,6 @@
 # T001 — pytest-scaffolding + fejk-LLM över riktig HTTP
 
-**Status:** TODO · **Fas:** 0 · **Prioritet:** P0 · **Beror på:** —
+**Status:** DONE · **Fas:** 0 · **Prioritet:** P0 · **Beror på:** —
 
 ## Varför
 
