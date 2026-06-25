@@ -51,10 +51,6 @@ markers = [
 python_version = "3.11"
 strict = true
 files = ["src", "tests"]
-# TILLFÄLLIG SKULD: den ursprungliga monolitiska cli.py är inte strikt-typad och
-# bär bl.a. T012-buggen (content[0]). Den skrivs om i T011–T013 och återförs då
-# under strikt mypy (ta bort denna exclude när cli.py är refaktorerad).
-exclude = "src/mcp_harness/cli\\.py$"
 
 [[tool.mypy.overrides]]
 # Test-fixturer använder FastMCP:s otypade verktygs-dekoratorer; relaxa just det
