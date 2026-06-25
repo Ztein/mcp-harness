@@ -1,6 +1,6 @@
 # T043 — seed-scenario: fel hanteras högljutt (fail-loudly)
 
-**Status:** TODO · **Fas:** E2E · **Prioritet:** P1 · **Beror på:** T040, T012, T021
+**Status:** DOING · **Fas:** E2E · **Prioritet:** P1 · **Beror på:** T040, T012, T021
 
 ## Varför
 

@@ -1,6 +1,6 @@
 # T042 — seed-scenario: verktygsval under scoping/press
 
-**Status:** TODO · **Fas:** E2E · **Prioritet:** P1 · **Beror på:** T040, T021
+**Status:** DOING · **Fas:** E2E · **Prioritet:** P1 · **Beror på:** T040, T021
 
 ## Varför
 

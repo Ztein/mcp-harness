@@ -23,9 +23,10 @@ from typing import Any
 import mcp.types as mcp_types
 import pytest
 from mcp.client.session import ClientSession
-from mcp.server.fastmcp import FastMCP
 from mcp.shared.memory import create_connected_server_and_client_session
 from mcp.types import CallToolResult
+
+from tests.support.fake_mcp import build_fake_mcp_server
 
 JsonDict = dict[str, Any]
 
@@ -108,40 +109,6 @@ def fake_llm(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeLLM]:
     monkeypatch.delenv("LLM_PARAMS", raising=False)
     yield fake
     fake.stop()
-
-
-def build_fake_mcp_server() -> FastMCP:
-    """En minimal MCP-server med kontrollerade verktyg, enbart för tester.
-
-    Verktygen är valda för att täcka de svåra fallen:
-    - ``echo``        — enkel runtripp (ett content-block).
-    - ``multi_block`` — **flera** content-block (reproducerar T012-buggen där
-      bara ``content[0]`` läses).
-    - ``boom``        — kastar fel (fel-vägen).
-    - ``structured``  — JSON-struktur (fält-assertion, PRD §11).
-    """
-    srv = FastMCP("test-mcp")
-
-    @srv.tool()
-    def echo(text: str) -> str:
-        return text
-
-    @srv.tool()
-    def multi_block() -> list[mcp_types.TextContent]:
-        return [
-            mcp_types.TextContent(type="text", text="block-A"),
-            mcp_types.TextContent(type="text", text="block-B"),
-        ]
-
-    @srv.tool()
-    def boom() -> str:
-        raise ValueError("avsiktligt fel")
-
-    @srv.tool()
-    def structured() -> JsonDict:
-        return {"id": "abc-123", "status": "ok", "missing": ["alpha", "beta"]}
-
-    return srv
 
 
 def texts_of(result: CallToolResult) -> list[str]:
