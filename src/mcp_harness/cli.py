@@ -85,7 +85,7 @@ def _print_event(event: Event) -> None:
         print(f"  ⚙ {event.name}({json.dumps(event.arguments, ensure_ascii=False)})")
     elif isinstance(event, ToolResult):
         if event.is_error:
-            print(f"    {event.text}")
+            print(f"    ⚠️  {event.text}")
     elif isinstance(event, AssistantText):
         print(f"\n{event.text}")
     elif isinstance(event, TurnError):

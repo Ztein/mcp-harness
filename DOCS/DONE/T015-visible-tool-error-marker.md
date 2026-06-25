@@ -1,6 +1,6 @@
 # T015 — markera verktygsfel synligt i transkriptet (is_error)
 
-**Status:** TODO · **Fas:** 1 · **Prioritet:** P1 · **Beror på:** T013
+**Status:** DONE · **Fas:** 1 · **Prioritet:** P1 · **Beror på:** T013
 
 ## Varför
 
@@ -20,9 +20,9 @@ För en princip-3-produkt (fail-hard, aldrig tyst) ska ett fel *se ut* som ett f
 
 ## Definition of Done
 
-- [ ] Ett verktygsfel renderas visuellt distinkt från ett lyckat svar i transkriptet.
-- [ ] Samma distinktion i stdout-vyn.
-- [ ] Lyckade svar oförändrade (regression täckt).
+- [x] Ett verktygsfel renderas visuellt distinkt från ett lyckat svar i transkriptet.
+- [x] Samma distinktion i stdout-vyn.
+- [x] Lyckade svar oförändrade (regression täckt).
 
 ## Testfall (skriv först)
 

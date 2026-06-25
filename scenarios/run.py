@@ -78,6 +78,9 @@ def main() -> int:
     if args.tools:
         cmd += ["--tools", args.tools]
 
+    # Färskt transkript per körning — CLI:t öppnar i append-läge, så en gammal
+    # körning skulle annars ligga kvar och fördubbla rapporten.
+    transcript.unlink(missing_ok=True)
     stdin = "\n".join(turns) + "\n"
     proc = subprocess.run(cmd, input=stdin, capture_output=True, text=True, cwd=ROOT)
     raw_path.write_text(

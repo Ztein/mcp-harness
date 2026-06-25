@@ -29,6 +29,12 @@ Men en konkret fail-loudly-brist hittades i människo-vyn (se förbättringar).
 - **JSONL (T020) skulle bära `is_error` maskinläsbart** — i dag måste en agent
   gissa felstatus ur prosan. Bekräftar T020 som P0.
 
+## Uppföljning
+
+- **T015 LANDAD.** Verktygsfel renderas nu distinkt: transkriptet visar
+  `→ ⚠️ Error executing tool boom: avsiktligt fel` (verifierat i omkörning). Den
+  enda fail-loudly-bristen detta scenario hittade är åtgärdad.
+
 ## Körbevis
 
 - Transkript: `03-fail-loudly.transcript.md` · Rådata: `03-fail-loudly.raw.txt` · exit=0
