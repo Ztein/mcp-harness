@@ -15,7 +15,10 @@ from collections.abc import Iterator
 import pytest
 import uvicorn
 from mcp.client.session import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import (  # type: ignore[attr-defined]  # create_mcp_http_client ej i mcp:s __all__
+    create_mcp_http_client,
+    streamable_http_client,
+)
 
 from tests.support.fake_mcp import BearerAuthASGI, build_fake_mcp_server
 
@@ -50,7 +53,8 @@ def http_mcp() -> Iterator[str]:
 
 async def test_http_server_lists_tools_over_streamable_http(http_mcp: str) -> None:
     async with (
-        streamablehttp_client(http_mcp, headers={"Authorization": f"Bearer {KEY}"}) as (r, w, _),
+        create_mcp_http_client(headers={"Authorization": f"Bearer {KEY}"}) as http_client,
+        streamable_http_client(http_mcp, http_client=http_client) as (r, w, _),
         ClientSession(r, w) as session,
     ):
         await session.initialize()
@@ -62,7 +66,8 @@ async def test_wrong_bearer_rejected(http_mcp: str) -> None:
     # Fel nyckel → anslutningen ska faila (servern svarar 401), inte tyst släppa in.
     with pytest.raises(Exception):  # noqa: B017 (HTTP/anslutningsfel — vi bryr oss om att det reser sig)
         async with (
-            streamablehttp_client(http_mcp, headers={"Authorization": "Bearer fel"}) as (r, w, _),
+            create_mcp_http_client(headers={"Authorization": "Bearer fel"}) as http_client,
+            streamable_http_client(http_mcp, http_client=http_client) as (r, w, _),
             ClientSession(r, w) as session,
         ):
             await session.initialize()

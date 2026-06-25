@@ -24,7 +24,10 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from mcp.client.session import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import (  # type: ignore[attr-defined]  # create_mcp_http_client ej i mcp:s __all__
+    create_mcp_http_client,
+    streamable_http_client,
+)
 
 from .engine import LlmFn, run_turn
 from .events import AssistantText, Event, ToolCall, ToolResult, TurnError, UserTurn
@@ -101,7 +104,8 @@ async def main(
 ) -> None:
     url, key = os.environ["MCP_URL"], os.environ["MCP_KEY"]
     async with (
-        streamablehttp_client(url, headers={"Authorization": f"Bearer {key}"}) as (r, w, _),
+        create_mcp_http_client(headers={"Authorization": f"Bearer {key}"}) as http_client,
+        streamable_http_client(url, http_client=http_client) as (r, w, _),
         ClientSession(r, w) as session,
     ):
         await session.initialize()
