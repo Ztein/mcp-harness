@@ -41,6 +41,23 @@ Två P1 från test-agenten (PRD §11):
    LLM-fel → tur 1 och 3 loggas korrekt; tur 3 påverkas inte.
 4. `test_batch_failure_sets_exit_nonzero` → någon tur föll → exit≠0 (via T022).
 
+## Sett i verkligheten (repro, 2026-06-25)
+
+Batch-resiliens-delen är inte teoretisk — den **hände** under en skarp körning hos
+konsumenten (use-case-mcp, T180): en 4-turs piped körning där tur 4:s LLM-anrop
+**timeoutade** (read timeout, efter att `llm.py`:s retries var uttömda). Resultatet:
+
+- Turen avbröts; transkriptet fick en `⚠️ Fel`-rad men **ingen** efterföljande
+  åtgärd (tur 4 var DoD-write-back-steget, som därför aldrig kördes).
+- Inget exit≠0, ingen maskinläsbar `error`-händelse → test-agenten upptäckte det
+  bara genom att **manuellt** läsa transkriptet och se att kommentaren saknades, och
+  fick köra om steget separat.
+
+Exakt det T023 ska fixa: felet ska bli en `error`-händelse (T020), markera turen
+misslyckad, och sätta exit≠0 (T022) — så att en obevakad batch inte tyst lämnar ett
+ofullständigt resultat som ser klart ut. **Använd detta som acceptans-repro:** en
+pipe där en mitt-i-tur timeoutar ska sluta tolkbart och rött, inte tyst trunkerat.
+
 ## Noteringar
 
 Detta är backstop-disciplin för obevakade körningar — själva poängen med att
