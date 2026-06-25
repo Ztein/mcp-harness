@@ -33,7 +33,7 @@ from .engine import LlmFn, run_turn
 from .events import AssistantText, Event, ToolCall, ToolResult, TurnError, UserTurn
 from .jsonl import JsonlSink
 from .llm import chat_completion, llm_model
-from .tools import apply_allowlist, to_openai_tools
+from .tools import apply_allowlist, check_expected_tools, to_openai_tools, tools_fingerprint
 from .transcript import TranscriptSink
 
 DEFAULT_SYSTEM = (
@@ -115,6 +115,7 @@ async def main(
     *,
     llm: LlmFn = _llm_message,
     jsonl: JsonlSink | None = None,
+    expect_tools: set[str] | None = None,
 ) -> None:
     url, key = os.environ["MCP_URL"], os.environ["MCP_KEY"]
     async with (
@@ -126,18 +127,27 @@ async def main(
         # Per-assistent-scoping (PRD §11): menyn modellen ser speglar exakt
         # allowlisten; okänt namn failar hårt (princip 3). Se tools.py.
         mcp_tools = apply_allowlist((await session.list_tools()).tools, tools_allow)
+        # Fail-hard mot stale server: avvikelse från förväntad meny stoppar körningen
+        # innan ett enda LLM-anrop görs (PRD §11, T021).
+        if expect_tools is not None:
+            check_expected_tools(mcp_tools, expect_tools)
+        fingerprint = tools_fingerprint(mcp_tools)
         oai_tools = to_openai_tools(mcp_tools)
+        names = sorted(t.name for t in mcp_tools)
         print(f"Ansluten: {url} — {len(mcp_tools)} verktyg, modell {llm_model()}.")
+        print(f"Verktyg: {', '.join(names)}")
+        print(f"Fingeravtryck: {fingerprint}")
         print(f"Systemprompt: {len(system)} tecken.")
         print("Skriv ditt meddelande (/tools, /reset, /quit).")
 
         if jsonl is not None:
-            # Självbeskrivande körning (PRD §11): modell, params, server, meny.
+            # Självbeskrivande körning (PRD §11): modell, params, server, meny + fingeravtryck.
             jsonl.write_header(
                 model=llm_model(),
                 params=_llm_params(),
                 mcp_url=url,
-                tools=[t.name for t in mcp_tools],
+                tools=names,
+                tools_fingerprint=fingerprint,
                 system_chars=len(system),
             )
 
@@ -195,14 +205,30 @@ def cli() -> None:
         help="Sökväg för maskinläsbar JSONL-körlogg (en rad/händelse, otrunkerat). "
         "Den stabila kontraktsytan för agent-/regressionstestning.",
     )
+    parser.add_argument(
+        "--expect-tools",
+        help="Kommaseparerad förväntad verktygsmängd (exakt). Avvikelse failar högljutt "
+        "innan något LLM-anrop — stoppar en stale server från att maskera sig.",
+    )
     args = parser.parse_args()
     tools_allow = {t.strip() for t in args.tools.split(",") if t.strip()} if args.tools else None
+    expect_tools = (
+        {t.strip() for t in args.expect_tools.split(",") if t.strip()}
+        if args.expect_tools
+        else None
+    )
     fh = _open_transcript(args.transcript)
     jsonl_fh = open(args.jsonl, "a", encoding="utf-8") if args.jsonl else None
     jsonl_sink = JsonlSink(jsonl_fh) if jsonl_fh is not None else None
     try:
         asyncio.run(
-            main(_load_system(args.system), TranscriptSink(fh), tools_allow, jsonl=jsonl_sink)
+            main(
+                _load_system(args.system),
+                TranscriptSink(fh),
+                tools_allow,
+                jsonl=jsonl_sink,
+                expect_tools=expect_tools,
+            )
         )
     finally:
         fh.close()

@@ -7,6 +7,8 @@ en tyst tom allowlist.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import Any
 
 from mcp.types import Tool
@@ -43,3 +45,32 @@ def apply_allowlist(tools: list[Tool], allow: set[str] | None) -> list[Tool]:
     if unknown:
         raise SystemExit(f"--tools: okända verktyg {sorted(unknown)}; finns: {sorted(available)}")
     return [t for t in tools if t.name in allow]
+
+
+def tools_fingerprint(tools: list[Tool]) -> str:
+    """Stabil hash av verktygsmenyn (namn + beskrivning + inputSchema).
+
+    Beräknas på menyn modellen faktiskt ser (efter allowlist/scoping). Stabil
+    mellan körningar för samma schema, ändras när ett verktygs schema ändras — så
+    en stale server (rätt antal, gammal kod) inte kan maskera sig (PRD §11).
+    Ordnings-oberoende: verktygen sorteras på namn."""
+    canon = [
+        {"name": t.name, "description": t.description or "", "schema": t.inputSchema}
+        for t in sorted(tools, key=lambda t: t.name)
+    ]
+    blob = json.dumps(canon, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(blob).hexdigest()[:16]
+
+
+def check_expected_tools(tools: list[Tool], expected: set[str]) -> None:
+    """Failar hårt om verktygsmängden avviker från ``expected`` (exakt mängd).
+
+    Både saknade och oväntade verktyg listas (princip 3). Match → tyst retur."""
+    actual = {t.name for t in tools}
+    missing = sorted(expected - actual)
+    unexpected = sorted(actual - expected)
+    if missing or unexpected:
+        raise SystemExit(
+            f"--expect-tools avvikelse — saknade: {missing}; oväntade: {unexpected}; "
+            f"faktiska: {sorted(actual)}"
+        )

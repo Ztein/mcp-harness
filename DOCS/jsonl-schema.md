@@ -19,9 +19,10 @@ versionen bumpas.
 | `params` | obj \| null | Extra LLM-params (LLM_PARAMS), t.ex. `{"temperature":0}`. |
 | `mcp_url` | str | Ansluten MCP-server. |
 | `tools` | str[] | Verktygsmenyn modellen ser (efter allowlist/scoping). |
+| `tools_fingerprint` | str | Stabil hash av menyn (namn+beskrivning+schema) — fångar stale server. |
 | `system_chars` | int | Systempromptens längd i tecken. |
 
-> Reserverat för senare faser: `tools_fingerprint` (T021), `profile` + approximation-not (T031).
+> Reserverat för senare faser: `profile` + approximation-not (T031).
 
 ### `user_turn`
 | `type` `"user_turn"` · `text` str | En användartur. |
