@@ -21,9 +21,9 @@ versionen bumpas.
 | `servers` | str[] | Namn på alla anslutna servrar (T030). |
 | `tools` | str[] | Verktygsmenyn modellen ser (efter allowlist/scoping). |
 | `tools_fingerprint` | str | Stabil hash av menyn (namn+beskrivning+schema) — fångar stale server. |
-| `system_chars` | int | Systempromptens längd i tecken. |
-
-> Reserverat för senare faser: `profile` + approximation-not (T031).
+| `profile` | str | Harness-profilens namn (T031). |
+| `approximation_note` | str | Ärlig 'skiljer sig här'-not — en grön körning är inte 'verifierad i den riktiga harnessen'. |
+| `system_chars` | int | (Ramad) systemprompts längd i tecken. |
 
 ### `user_turn`
 | `type` `"user_turn"` · `text` str | En användartur. |

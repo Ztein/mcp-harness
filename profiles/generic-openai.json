@@ -1,0 +1,5 @@
+{
+  "name": "generic-openai",
+  "base_system": "Du är en hjälpsam assistent med tillgång till verktyg via funktionsanrop. Använd verktyg när uppgiften kräver det, och anropa aldrig ett verktyg som inte finns i listan. Var koncis.",
+  "approximation_note": "generic-openai — en neutral OpenAI-stil verktygsramning. Skiljer sig från en specifik produkt (Intric/Claude Desktop/Cursor): ingen produktspecifik systemprompt, ingen omskrivning av verktygsschemat, ingen svars-trunkering. Använd som baslinje, inte som bevis för en viss harness."
+}

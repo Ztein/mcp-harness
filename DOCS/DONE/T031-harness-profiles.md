@@ -1,6 +1,6 @@
 # T031 — harness-profiler
 
-**Status:** TODO · **Fas:** 3 · **Prioritet:** P1 · **Beror på:** T011, T020, T030
+**Status:** DONE · **Fas:** 3 · **Prioritet:** P1 · **Beror på:** T011, T020, T030
 
 ## Varför
 
@@ -23,11 +23,11 @@ uttryckliga ”skiljer sig här”-noter (PRD §5, §10).
 
 ## Definition of Done
 
-- [ ] Profil laddas från fil; `--profile <namn>` väljer den.
-- [ ] Bas-ramning omsluter användarens skill **utan att skriva över den**.
-- [ ] Menyn modellen ser speglar profilens scoping exakt (verifierat mot T021).
-- [ ] Profilens namn + approximation-not skrivs i JSONL-headern.
-- [ ] Minst `raw` (ingen extra ramning) och en till exempel-profil levereras.
+- [x] Profil laddas från fil; `--profile <namn>` väljer den.
+- [x] Bas-ramning omsluter användarens skill **utan att skriva över den**.
+- [x] Menyn modellen ser speglar profilens scoping exakt (verifierat mot T021).
+- [x] Profilens namn + approximation-not skrivs i JSONL-headern.
+- [x] Minst `raw` (ingen extra ramning) och en till exempel-profil levereras.
 
 ## Testfall (skriv först)
 
