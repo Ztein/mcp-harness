@@ -12,7 +12,15 @@ from __future__ import annotations
 import json
 from typing import TextIO
 
-from .events import AssistantText, Event, ToolCall, ToolResult, TurnError, UserTurn
+from .events import (
+    AssistantText,
+    AttachmentAdded,
+    Event,
+    ToolCall,
+    ToolResult,
+    TurnError,
+    UserTurn,
+)
 
 DEFAULT_TRUNCATE = 500
 
@@ -36,6 +44,8 @@ def render_event(event: Event, *, truncate: int = DEFAULT_TRUNCATE) -> str:
         return f"  - → {marker}{shown}"
     if isinstance(event, TurnError):
         return f"\n## ⚠️ Fel\n\n{event.message}"
+    if isinstance(event, AttachmentAdded):
+        return f"\n- 📎 Bilaga: `{event.name}` ({event.kind}, {event.size} B)"
     # Uttömmande över Event-unionen; en ny händelsetyp ska upptäckas av mypy.
     raise AssertionError(f"okänd händelsetyp: {event!r}")
 

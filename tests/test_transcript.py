@@ -7,7 +7,14 @@ parsbara ``⚙ namn(args-json)``-formatet bevaras (PRD §11 P2). Trunkering med
 
 from __future__ import annotations
 
-from mcp_harness.events import AssistantText, ToolCall, ToolResult, TurnError, UserTurn
+from mcp_harness.events import (
+    AssistantText,
+    AttachmentAdded,
+    ToolCall,
+    ToolResult,
+    TurnError,
+    UserTurn,
+)
 from mcp_harness.transcript import render_event
 
 
@@ -50,3 +57,9 @@ def test_transcript_error_rendered() -> None:
     out = render_event(TurnError(message="nere"))
     assert "⚠️" in out
     assert "nere" in out
+
+
+def test_transcript_attachment_rendered() -> None:
+    out = render_event(AttachmentAdded(name="doc.md", kind="text", size=42))
+    assert "📎" in out
+    assert "doc.md" in out

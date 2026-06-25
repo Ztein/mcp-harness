@@ -50,4 +50,14 @@ class TurnError:
     type: Literal["error"] = "error"
 
 
-Event = UserTurn | ToolCall | ToolResult | AssistantText | TurnError
+@dataclass
+class AttachmentAdded:
+    """En bilaga lades till konversationen (T032). Metadata, inte hela innehållet."""
+
+    name: str
+    kind: str  # "text" | "image"
+    size: int
+    type: Literal["attachment"] = "attachment"
+
+
+Event = UserTurn | ToolCall | ToolResult | AssistantText | TurnError | AttachmentAdded
