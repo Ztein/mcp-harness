@@ -1,6 +1,6 @@
 # T013 — transkript-skrivare som injicerbar sink
 
-**Status:** TODO · **Fas:** 1 · **Prioritet:** P2 · **Beror på:** T011
+**Status:** DONE · **Fas:** 1 · **Prioritet:** P2 · **Beror på:** T011
 
 ## Varför
 

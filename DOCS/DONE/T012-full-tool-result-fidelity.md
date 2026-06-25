@@ -1,6 +1,6 @@
 # T012 — full verktygssvars-trohet: konkatenera ALLA content-block
 
-**Status:** TODO · **Fas:** 1 · **Prioritet:** P0 (buggfix) · **Beror på:** T011
+**Status:** DONE · **Fas:** 1 · **Prioritet:** P0 (buggfix) · **Beror på:** T011
 
 ## Varför
 

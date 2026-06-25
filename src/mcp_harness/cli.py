@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
-"""Liten terminal-chattklient: prata med en LLM som kan köra MCP-verktyg.
-Multi-turn — modellen kan kedja flera verktygsanrop per svar.
+"""mcp-harness — testkör en MCP genom en riktig LLM + systemprompt i terminalen.
+
+Tunn I/O-skal: argument-parsing, anslutning och utskrift. Själva agent-loopen bor
+i :mod:`mcp_harness.engine` (testbar), människo-transkriptet i
+:mod:`mcp_harness.transcript`, verktygs-menyn i :mod:`mcp_harness.tools`.
 
 Generisk: funkar mot vilken Streamable-HTTP-MCP som helst och vilken
 OpenAI-kompatibel modell som helst. LLM-config är provider-agnostisk
-(LLM_BASE_URL/_API_KEY/_MODEL) — se llm_client.py.
+(LLM_BASE_URL/_API_KEY/_MODEL) — se :mod:`mcp_harness.llm`.
 
-    set -a; source .env; set +a                       # LLM_BASE_URL/_API_KEY/_MODEL
-    export MCP_URL=http://<host>/mcp
-    export MCP_KEY=<MCP API-nyckel>
-    uv run python scripts/mcp_chat.py
-
-Kommandon i chatten: /tools (lista verktyg), /reset (nollställ historik),
-/quit. Piped stdin funkar också (kör ett gäng rader, avslutar vid EOF).
+Kommandon i chatten: /tools (lista verktyg), /reset (nollställ historik), /quit.
+Piped stdin funkar också (en rad = en tur, avslutar vid EOF).
 """
 
 from __future__ import annotations
@@ -23,13 +21,16 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 from mcp.client.session import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
+from .engine import LlmFn, run_turn
+from .events import AssistantText, Event, ToolCall, ToolResult, TurnError, UserTurn
 from .llm import chat_completion, llm_model
 from .tools import apply_allowlist, to_openai_tools
+from .transcript import TranscriptSink
 
 DEFAULT_SYSTEM = (
     "Du är en assistent med verktyg mot Azure DevOps. Använd verktygen när det behövs "
@@ -46,10 +47,12 @@ def _load_system(system_arg: str | None) -> str:
     return os.environ.get("MCP_CHAT_SYSTEM", DEFAULT_SYSTEM)
 
 
-def _llm(messages: list[dict], tools: list[dict]) -> dict:
-    """Ett chat/completions-anrop via den provider-agnostiska klienten;
-    returnerar choices[0] (det chatten använder)."""
-    return chat_completion(messages, tools, model=None, timeout=120)["choices"][0]
+def _llm_message(messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> dict[str, Any]:
+    """En LlmFn: ett chat/completions-anrop via den provider-agnostiska klienten;
+    returnerar assistent-meddelandet (det motorn arbetar med)."""
+    choice: dict[str, Any] = chat_completion(messages, tools, timeout=120)["choices"][0]
+    message: dict[str, Any] = choice["message"]
+    return message
 
 
 async def _read(prompt: str) -> str | None:
@@ -76,28 +79,41 @@ def _open_transcript(path_arg: str | None) -> TextIO:
     return fh
 
 
-def _w(tr: TextIO, text: str) -> None:
-    tr.write(text + "\n")
-    tr.flush()
+def _print_event(event: Event) -> None:
+    """Lättviktig stdout-vy av en motor-händelse (transkriptet bär den fulla)."""
+    if isinstance(event, ToolCall):
+        print(f"  ⚙ {event.name}({json.dumps(event.arguments, ensure_ascii=False)})")
+    elif isinstance(event, ToolResult):
+        if event.is_error:
+            print(f"    {event.text}")
+    elif isinstance(event, AssistantText):
+        print(f"\n{event.text}")
+    elif isinstance(event, TurnError):
+        print(f"\n⚠️  {event.message}")
 
 
-async def main(system: str, tr: TextIO, tools_allow: set[str] | None = None) -> None:
+async def main(
+    system: str,
+    transcript: TranscriptSink,
+    tools_allow: set[str] | None = None,
+    *,
+    llm: LlmFn = _llm_message,
+) -> None:
     url, key = os.environ["MCP_URL"], os.environ["MCP_KEY"]
     async with (
         streamablehttp_client(url, headers={"Authorization": f"Bearer {key}"}) as (r, w, _),
         ClientSession(r, w) as session,
     ):
         await session.initialize()
-        # Per-assistent-scoping (PRD §11): visa bara en delmängd av verktygen för
-        # modellen. Okänt namn failar högljutt (princip 3). Menyn modellen ser
-        # speglar exakt allowlisten. Se tools.py för de rena funktionerna.
+        # Per-assistent-scoping (PRD §11): menyn modellen ser speglar exakt
+        # allowlisten; okänt namn failar hårt (princip 3). Se tools.py.
         mcp_tools = apply_allowlist((await session.list_tools()).tools, tools_allow)
         oai_tools = to_openai_tools(mcp_tools)
         print(f"Ansluten: {url} — {len(mcp_tools)} verktyg, modell {llm_model()}.")
         print(f"Systemprompt: {len(system)} tecken.")
         print("Skriv ditt meddelande (/tools, /reset, /quit).")
 
-        messages: list[dict] = [{"role": "system", "content": system}]
+        messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
         while True:
             user = await _read("\n> ")
             if user is None or user in ("/quit", "/exit"):
@@ -114,40 +130,13 @@ async def main(system: str, tr: TextIO, tools_allow: set[str] | None = None) -> 
                 continue
 
             messages.append({"role": "user", "content": user})
-            _w(tr, f"\n## 👤 Användare\n\n{user}")
-            # Agent-loop: kör verktyg tills modellen ger ett textsvar.
-            while True:
-                try:
-                    choice = _llm(messages, oai_tools)
-                except Exception as exc:  # transient LLM-fel: logga, krascha ej
-                    err = f"LLM-anrop misslyckades: {exc}"
-                    print(f"\n⚠️  {err}\n   Skriv om eller försök igen.")
-                    _w(tr, f"\n## ⚠️ Fel\n\n{err}")
-                    break
-                msg = choice["message"]
-                tool_calls = msg.get("tool_calls")
-                if not tool_calls:
-                    content = msg.get("content") or "(tomt svar)"
-                    print(f"\n{content}")
-                    _w(tr, f"\n## 🤖 Assistent\n\n{content}")
-                    messages.append({"role": "assistant", "content": msg.get("content")})
-                    break
-                messages.append(
-                    {"role": "assistant", "content": msg.get("content"), "tool_calls": tool_calls}
-                )
-                for tc in tool_calls:
-                    name = tc["function"]["name"]
-                    args = json.loads(tc["function"].get("arguments") or "{}")
-                    print(f"  ⚙ {name}({json.dumps(args, ensure_ascii=False)})")
-                    _w(tr, f"\n- ⚙ `{name}({json.dumps(args, ensure_ascii=False)})`")
-                    try:
-                        result = await session.call_tool(name, args)
-                        text = result.content[0].text if result.content else "(tomt)"
-                    except Exception as exc:
-                        text = f"FEL vid verktygsanrop: {exc}"
-                        print(f"    {text}")
-                    _w(tr, f"  - → {text[:500]}")
-                    messages.append({"role": "tool", "tool_call_id": tc["id"], "content": text})
+            transcript.write(UserTurn(text=user))
+            events = await run_turn(
+                session=session, llm=llm, messages=messages, oai_tools=oai_tools
+            )
+            for event in events:
+                _print_event(event)
+                transcript.write(event)
 
 
 def cli() -> None:
@@ -170,11 +159,11 @@ def cli() -> None:
     )
     args = parser.parse_args()
     tools_allow = {t.strip() for t in args.tools.split(",") if t.strip()} if args.tools else None
-    transcript = _open_transcript(args.transcript)
+    fh = _open_transcript(args.transcript)
     try:
-        asyncio.run(main(_load_system(args.system), transcript, tools_allow))
+        asyncio.run(main(_load_system(args.system), TranscriptSink(fh), tools_allow))
     finally:
-        transcript.close()
+        fh.close()
 
 
 if __name__ == "__main__":

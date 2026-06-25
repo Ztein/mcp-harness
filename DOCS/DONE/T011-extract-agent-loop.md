@@ -1,6 +1,6 @@
 # T011 — bryt ut agent-loopen till en testbar motor
 
-**Status:** TODO · **Fas:** 1 · **Prioritet:** P0 · **Beror på:** T010
+**Status:** DONE · **Fas:** 1 · **Prioritet:** P0 · **Beror på:** T010
 
 ## Varför
 

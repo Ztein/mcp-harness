@@ -41,7 +41,5 @@ def apply_allowlist(tools: list[Tool], allow: set[str] | None) -> list[Tool]:
     available = {t.name for t in tools}
     unknown = allow - available
     if unknown:
-        raise SystemExit(
-            f"--tools: okända verktyg {sorted(unknown)}; finns: {sorted(available)}"
-        )
+        raise SystemExit(f"--tools: okända verktyg {sorted(unknown)}; finns: {sorted(available)}")
     return [t for t in tools if t.name in allow]
