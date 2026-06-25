@@ -167,3 +167,76 @@ det mot en riktig MCP + modell.
   ska bära ärliga "skiljer sig här"-noter.)
 - stdio-transport-prioritet (många MCP:er är stdio, inte HTTP) — sannolikt Fas 1.
 - Behövs ett litet test-/CI-lager för själva harnessen (mot en fejk-MCP)?
+
+## 11. Önskemål från test-agenten (primär konsument)
+
+> Skrivet av den agent (Claude) som körde hela protokoll-sviter genom föregångaren
+> (`mcp_chat.py`). Detta är vad jag behöver för att verktyget ska vara *utmärkt*
+> för agent-driven, skriptad MCP-testning — inte bara dugligt. Prioritet:
+> **P0** = blockerar arbetsflödet · **P1** = hög · **P2** = trevligt. Varje punkt
+> har ett konkret skäl från faktisk användning.
+
+### P0 — utan dessa haltar agent-flödet
+
+- **Maskinläsbar körlogg (JSONL) parallellt med människo-transkriptet.** En rad per
+  händelse: `user_turn`, `tool_call` (namn + **fullständiga** args), `tool_result`
+  (**otrunkerat**), `assistant_text`, `usage`/latens, fel. *Skäl:* jag regex-skrapar
+  idag markdown-transkriptet för att dra ut verktygsanrop och döma — sprött och
+  förlustfullt. Ge mig strukturerad data så slipper jag parsa prosa.
+- **Aldrig tyst trunkering av verktygssvar i loggen.** Människo-vyn får klippa
+  (`…`), men den maskinläsbara loggen måste bära HELA svaret. *Skäl:* `[:500]`
+  dolde en `missing`-lista mitt i ett ord; slutläges-dömning hänger på fulla svar.
+- **Server-fingeravtryck + förväntnings-assertion vid anslutning.** Skriv ut
+  verktygs-*namnen* (inte bara antal) och en hash av verktygsschemat; tillåt
+  `--expect-tools a,b,c` (eller en räknare) som **failar högljutt** vid avvikelse.
+  *Skäl:* en stale server (rätt antal, gammal kod) maskerade sig och kostade mig
+  en hel felsökningsrunda — verktyget ska göra det omöjligt att tro att man testar
+  ny kod när man testar gammal.
+- **Helt headless, inga TTY-antaganden, ren exit-kod.** Måste gå att driva fullt
+  från ett skal (piped stdin, bakgrund, SSH). En körning ska sluta med **exit ≠ 0**
+  om en tur slutligen misslyckades, + en enrads-sammanfattning (turer, verktygs-
+  anrop, fel). *Skäl:* jag kör det från Bash-anrop, ibland i bakgrund; jag måste
+  kunna greena/röda en körning programmatiskt.
+
+### P1 — gör testningen robust och trovärdig
+
+- **Tur-loop-broms (tak på verktygsanrop per tur).** En backstop så en modell som
+  loopar inte hänger en obevakad batch-körning. *Skäl:* inga tak idag = en otäck
+  modell kan låsa en hel svit-körning.
+- **Batch-resiliens.** I en piped fler-turs/fler-protokoll-körning ska ETT slutligt
+  LLM-fel loggas och hanteras (fortsätt eller avbryt rent med kod) — inte tyst
+  korrumpera resten av batchen. *Skäl:* protokoll-sviter körs som långa pipes;
+  en blip mitt i får inte göra resten otolkbar.
+- **Full verktygssvars-trohet.** Konkatenera ALLA content-block (inte bara `[0]`),
+  och bevara strukturerat/JSON-svar så jag kan assert:a på fält. *Skäl:* jag dömer
+  ofta på fält i svaret (id, status, `missing`).
+- **Trogen verktygs-meny per profil/scoping.** Den meny modellen ser måste EXAKT
+  spegla profilen/allowlisten — för menyns *storlek och innehåll* påverkar
+  modellens val (bevisat: scoping ändrade beteende). *Skäl:* annars testar jag inte
+  den harness jag tror.
+- **Självbeskrivande körningar för regression.** Loggen ska fånga prompt, modell,
+  params, server-fingeravtryck, profil — så två körningar kan diffas och en matris-
+  rad är självförklarande. Stöd `temperature`/`seed` där modellen tillåter, och
+  **registrera** dem. *Skäl:* regressionsdisciplin kräver att jag kan jämföra
+  "före/efter" troget.
+
+### P2 — trevligt, höjer takhöjden
+
+- **Deklarativa scenariefiler** (systemprompt + turer + bifogade filer + förväntade
+  verktyg) som kan köras icke-interaktivt och checkas in bredvid testfallen.
+- **Stabilt, parsbart anrops-format** även i människo-transkriptet (behåll
+  `⚙ namn(args-json)`) så ev. äldre parsers inte bryts — men JSONL ovan är den
+  riktiga kontraktsytan.
+- **Fil-bilaga för test av kontext-/multimodal-flöden** (det användaren bett om):
+  jag vill kunna mata in ett dokument och se hur MCP+modell hanterar det.
+- **Ärlig approximation-not i loggen.** När en profil skiljer sig från den riktiga
+  harnessen ska det stå i körningen, så en grön terminal-körning inte misstas för
+  "verifierad i Intric".
+
+### Designvärden jag vill att produkten håller fast vid
+
+- **Litet och förutsägbart** — jag förlitar mig på det i en automatiserad loop;
+  beteendet får inte drifta mellan versioner utan att kontraktsytan (JSONL) är
+  stabil och versionerad.
+- **Fail-hard, aldrig tyst** — samma princip som domänen den testar: hellre ett
+  högljutt fel än ett tyst halvresultat jag feltolkar som grönt.
