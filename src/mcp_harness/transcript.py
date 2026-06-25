@@ -30,7 +30,10 @@ def render_event(event: Event, *, truncate: int = DEFAULT_TRUNCATE) -> str:
     if isinstance(event, ToolResult):
         text = event.text
         shown = text if len(text) <= truncate else text[:truncate] + "…"
-        return f"  - → {shown}"
+        # T015: ett verktygsfel ska se ut som ett fel, inte som ett lyckat svar
+        # (princip 3). is_error bor i datat — här gör vi det synligt i vyn.
+        marker = "⚠️ " if event.is_error else ""
+        return f"  - → {marker}{shown}"
     if isinstance(event, TurnError):
         return f"\n## ⚠️ Fel\n\n{event.message}"
     # Uttömmande över Event-unionen; en ny händelsetyp ska upptäckas av mypy.

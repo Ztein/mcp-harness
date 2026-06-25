@@ -10,7 +10,7 @@ Systemprompt: 436 tecken.
 Skriv ditt meddelande (/tools, /reset, /quit).
 
 >   ⚙ boom({})
-    Error executing tool boom: avsiktligt fel
+    ⚠️  Error executing tool boom: avsiktligt fel
 
 Jag anropade verktyget `boom` och det resulterade i ett felmeddelande: "Error executing tool boom: avsiktligt fel".
 
@@ -22,5 +22,6 @@ block-B
 > Hej då.
 
 --- STDERR ---
+  LLM-anrop misslyckades (försök 1/3): TimeoutError: The read operation timed out — väntar 1s
 
 --- EXIT 0 ---

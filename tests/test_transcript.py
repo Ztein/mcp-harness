@@ -31,6 +31,16 @@ def test_transcript_short_result_not_truncated() -> None:
     assert "…" not in out
 
 
+def test_transcript_marks_tool_error() -> None:
+    # T015: ett verktygsfel ska SE UT som ett fel (princip 3), inte som ett
+    # lyckat svar med samma →-prefix.
+    err = render_event(ToolResult(call_id="c1", name="boom", text="trasig", is_error=True))
+    ok = render_event(ToolResult(call_id="c1", name="echo", text="bra", is_error=False))
+    assert "⚠️" in err
+    assert "trasig" in err
+    assert "⚠️" not in ok
+
+
 def test_transcript_user_and_assistant_roles() -> None:
     assert "👤" in render_event(UserTurn(text="hej"))
     assert "🤖" in render_event(AssistantText(text="svar"))
