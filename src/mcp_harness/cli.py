@@ -36,6 +36,7 @@ from .engine import DEFAULT_MAX_TOOL_CALLS, LlmFn, RunSummary, run_turn, tally_t
 from .events import AssistantText, Event, ToolCall, ToolResult, TurnError, UserTurn
 from .jsonl import JsonlSink
 from .llm import chat_completion, llm_model
+from .profiles import frame_system, load_profile
 from .tools import (
     aggregate_tools,
     apply_allowlist,
@@ -147,6 +148,8 @@ async def main(
     jsonl: JsonlSink | None = None,
     expect_tools: set[str] | None = None,
     max_tool_calls: int = DEFAULT_MAX_TOOL_CALLS,
+    profile_name: str = "raw",
+    approximation_note: str = "",
 ) -> RunSummary:
     async with AsyncExitStack() as stack:
         sessions, per_server = await _connect_all(stack, servers)
@@ -172,11 +175,15 @@ async def main(
         )
         print(f"Verktyg: {', '.join(names)}")
         print(f"Fingeravtryck: {fingerprint}")
+        print(f"Profil: {profile_name}")
+        if approximation_note:
+            # Ärlig not (PRD §11): en grön körning är inte 'verifierad i den riktiga harnessen'.
+            print(f"  ⓘ {approximation_note}")
         print(f"Systemprompt: {len(system)} tecken.")
         print("Skriv ditt meddelande (/tools, /reset, /quit).")
 
         if jsonl is not None:
-            # Självbeskrivande körning (PRD §11): modell, params, servrar, meny + fingeravtryck.
+            # Självbeskrivande körning (PRD §11): modell, params, servrar, meny, profil.
             jsonl.write_header(
                 model=llm_model(),
                 params=_llm_params(),
@@ -184,6 +191,8 @@ async def main(
                 servers=[s.name for s in servers],
                 tools=names,
                 tools_fingerprint=fingerprint,
+                profile=profile_name,
+                approximation_note=approximation_note,
                 system_chars=len(system),
             )
 
@@ -268,8 +277,22 @@ def cli() -> None:
         help="JSON-fil med flera MCP-servrar ({'servers':[{name,url,key}]}). "
         "Default: en server via MCP_URL/MCP_KEY.",
     )
+    parser.add_argument(
+        "--profile",
+        default="raw",
+        help="Harness-profil (profiles/<namn>.json eller sökväg). Ramar skillen och "
+        "kan scope:a verktyg. Default: raw (ingen extra ramning).",
+    )
     args = parser.parse_args()
-    tools_allow = {t.strip() for t in args.tools.split(",") if t.strip()} if args.tools else None
+    profile = load_profile(args.profile)
+    # Profilen ramar skillen (runt, inte över) och kan scope:a verktyg.
+    system = frame_system(profile, _load_system(args.system))
+    if args.tools:
+        tools_allow: set[str] | None = {t.strip() for t in args.tools.split(",") if t.strip()}
+    elif profile.tools_allow:
+        tools_allow = set(profile.tools_allow)
+    else:
+        tools_allow = None
     expect_tools = (
         {t.strip() for t in args.expect_tools.split(",") if t.strip()}
         if args.expect_tools
@@ -288,13 +311,15 @@ def cli() -> None:
     try:
         summary = asyncio.run(
             main(
-                _load_system(args.system),
+                system,
                 TranscriptSink(fh),
                 servers,
                 tools_allow,
                 jsonl=jsonl_sink,
                 expect_tools=expect_tools,
                 max_tool_calls=args.max_tool_calls_per_turn,
+                profile_name=profile.name,
+                approximation_note=profile.approximation_note,
             )
         )
     finally:
