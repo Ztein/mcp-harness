@@ -19,6 +19,7 @@ from .events import (
     ToolCall,
     ToolResult,
     TurnError,
+    TurnMeta,
     UserTurn,
 )
 
@@ -46,6 +47,9 @@ def render_event(event: Event, *, truncate: int = DEFAULT_TRUNCATE) -> str:
         return f"\n## ⚠️ Fel\n\n{event.message}"
     if isinstance(event, AttachmentAdded):
         return f"\n- 📎 Bilaga: `{event.name}` ({event.kind}, {event.size} B)"
+    if isinstance(event, TurnMeta):
+        usage = f" · {event.usage}" if event.usage else ""
+        return f"\n- ⏱ {event.latency_ms:.0f} ms{usage}"
     # Uttömmande över Event-unionen; en ny händelsetyp ska upptäckas av mypy.
     raise AssertionError(f"okänd händelsetyp: {event!r}")
 

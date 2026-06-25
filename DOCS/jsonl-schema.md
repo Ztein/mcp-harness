@@ -51,8 +51,27 @@ versionen bumpas.
 ### `assistant_text`
 | `type` `"assistant_text"` · `text` str | Modellens textsvar som avslutar turen. |
 
+### `attachment`
+| `type` `"attachment"` · `name` str · `kind` `"text"`\|`"image"` · `size` int | En bilaga lades till (T032; metadata, ej innehåll). |
+
+### `turn_meta` (efter varje tur)
+| Fält | Typ | Beskrivning |
+|------|-----|-------------|
+| `type` | `"turn_meta"` | |
+| `latency_ms` | float | Turens totala väggklocka (LLM + verktyg). |
+| `llm_calls` | int \| null | Antal LLM-anrop i turen. |
+| `usage` | obj \| null | Summerad token-`usage` (och ev. leverantörs-extra som co2/energi). |
+
 ### `error`
 | `type` `"error"` · `message` str | LLM-fel eller tak-överskridande (turen misslyckades). |
+
+## Diffa två körningar (T033)
+
+Headern gör varje körning självbeskrivande (modell, params inkl. `seed`/
+`temperature`, servrar, fingeravtryck, profil). För att jämföra två körningar:
+diffa headern för att se vad som ändrades i uppsättningen, och jämför `tool_call`/
+`tool_result`/`assistant_text`-raderna för beteendeskillnader. Eftersom args och
+svar är otrunkerade är diffen trogen. `turn_meta` ger latens/token-trend.
 
 ## Exempel
 
