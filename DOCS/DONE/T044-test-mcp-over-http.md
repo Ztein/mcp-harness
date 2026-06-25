@@ -1,6 +1,6 @@
 # T044 — exponera test-MCP över Streamable HTTP för riktig E2E
 
-**Status:** TODO · **Fas:** E2E · **Prioritet:** P0 · **Beror på:** T002
+**Status:** DONE · **Fas:** E2E · **Prioritet:** P0 · **Beror på:** T002
 
 ## Varför
 
