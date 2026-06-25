@@ -1,6 +1,6 @@
 # T022 — headless exit-kod + enrads-sammanfattning
 
-**Status:** TODO · **Fas:** 2 · **Prioritet:** P0 · **Beror på:** T011
+**Status:** DONE · **Fas:** 2 · **Prioritet:** P0 · **Beror på:** T011
 
 ## Varför
 
@@ -22,11 +22,11 @@ exit alltid 0 och det finns inga TTY-fria garantier.
 
 ## Definition of Done
 
-- [ ] Piped körning utan TTY fungerar och avslutar rent vid EOF.
-- [ ] Exit `0` när alla turer lyckades; exit `≠0` när minst en slutligen
+- [x] Piped körning utan TTY fungerar och avslutar rent vid EOF.
+- [x] Exit `0` när alla turer lyckades; exit `≠0` när minst en slutligen
       misslyckades.
-- [ ] Enrads-sammanfattning skrivs vid avslut, oavsett utfall.
-- [ ] Sammanfattningen och exit-koden är samstämmiga (inte exit 0 + ”1 fel”).
+- [x] Enrads-sammanfattning skrivs vid avslut, oavsett utfall.
+- [x] Sammanfattningen och exit-koden är samstämmiga (inte exit 0 + ”1 fel”).
 
 ## Testfall (skriv först)
 
