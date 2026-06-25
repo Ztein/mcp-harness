@@ -1,6 +1,6 @@
 # T021 — server-fingeravtryck + `--expect-tools` (fail-hard)
 
-**Status:** TODO · **Fas:** 2 · **Prioritet:** P0 · **Beror på:** T010
+**Status:** DONE · **Fas:** 2 · **Prioritet:** P0 · **Beror på:** T010
 
 ## Varför
 
@@ -25,13 +25,13 @@ faktiska menyn modellen ser (efter allowlist/scoping), inte råservern.
 
 ## Definition of Done
 
-- [ ] Verktygs-fingeravtryck (sorterade namn + schemahash) skrivs vid anslutning
+- [x] Verktygs-fingeravtryck (sorterade namn + schemahash) skrivs vid anslutning
       och i JSONL-headern.
-- [ ] Hashen är **stabil** mellan körningar för samma schema och **ändras** när
+- [x] Hashen är **stabil** mellan körningar för samma schema och **ändras** när
       ett verktygs schema ändras.
-- [ ] `--expect-tools` failar högljutt (exit≠0, tydligt meddelande med saknade +
+- [x] `--expect-tools` failar högljutt (exit≠0, tydligt meddelande med saknade +
       oväntade namn) vid avvikelse; matchar → tyst grönt.
-- [ ] Fingeravtrycket beräknas på menyn **efter** allowlist/scoping.
+- [x] Fingeravtrycket beräknas på menyn **efter** allowlist/scoping.
 
 ## Testfall (skriv först)
 
