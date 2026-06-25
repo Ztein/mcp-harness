@@ -31,6 +31,7 @@ from mcp.client.streamable_http import (  # type: ignore[attr-defined]  # create
 
 from .engine import LlmFn, run_turn
 from .events import AssistantText, Event, ToolCall, ToolResult, TurnError, UserTurn
+from .jsonl import JsonlSink
 from .llm import chat_completion, llm_model
 from .tools import apply_allowlist, to_openai_tools
 from .transcript import TranscriptSink
@@ -95,12 +96,25 @@ def _print_event(event: Event) -> None:
         print(f"\n⚠️  {event.message}")
 
 
+def _llm_params() -> dict[str, Any] | None:
+    """Ev. extra LLM-params (LLM_PARAMS) för JSONL-headern — None om osatt/ogiltig."""
+    raw = os.environ.get("LLM_PARAMS", "").strip()
+    if not raw:
+        return None
+    try:
+        parsed: dict[str, Any] = json.loads(raw)
+        return parsed
+    except json.JSONDecodeError:
+        return None
+
+
 async def main(
     system: str,
     transcript: TranscriptSink,
     tools_allow: set[str] | None = None,
     *,
     llm: LlmFn = _llm_message,
+    jsonl: JsonlSink | None = None,
 ) -> None:
     url, key = os.environ["MCP_URL"], os.environ["MCP_KEY"]
     async with (
@@ -116,6 +130,16 @@ async def main(
         print(f"Ansluten: {url} — {len(mcp_tools)} verktyg, modell {llm_model()}.")
         print(f"Systemprompt: {len(system)} tecken.")
         print("Skriv ditt meddelande (/tools, /reset, /quit).")
+
+        if jsonl is not None:
+            # Självbeskrivande körning (PRD §11): modell, params, server, meny.
+            jsonl.write_header(
+                model=llm_model(),
+                params=_llm_params(),
+                mcp_url=url,
+                tools=[t.name for t in mcp_tools],
+                system_chars=len(system),
+            )
 
         messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
         while True:
@@ -134,13 +158,18 @@ async def main(
                 continue
 
             messages.append({"role": "user", "content": user})
-            transcript.write(UserTurn(text=user))
+            user_event = UserTurn(text=user)
+            transcript.write(user_event)
+            if jsonl is not None:
+                jsonl.write(user_event)
             events = await run_turn(
                 session=session, llm=llm, messages=messages, oai_tools=oai_tools
             )
             for event in events:
                 _print_event(event)
                 transcript.write(event)
+                if jsonl is not None:
+                    jsonl.write(event)
 
 
 def cli() -> None:
@@ -161,13 +190,24 @@ def cli() -> None:
         help="Kommaseparerad allowlist av verktygsnamn (approximerar per-assistent-scoping). "
         "Default: alla verktyg servern exponerar.",
     )
+    parser.add_argument(
+        "--jsonl",
+        help="Sökväg för maskinläsbar JSONL-körlogg (en rad/händelse, otrunkerat). "
+        "Den stabila kontraktsytan för agent-/regressionstestning.",
+    )
     args = parser.parse_args()
     tools_allow = {t.strip() for t in args.tools.split(",") if t.strip()} if args.tools else None
     fh = _open_transcript(args.transcript)
+    jsonl_fh = open(args.jsonl, "a", encoding="utf-8") if args.jsonl else None
+    jsonl_sink = JsonlSink(jsonl_fh) if jsonl_fh is not None else None
     try:
-        asyncio.run(main(_load_system(args.system), TranscriptSink(fh), tools_allow))
+        asyncio.run(
+            main(_load_system(args.system), TranscriptSink(fh), tools_allow, jsonl=jsonl_sink)
+        )
     finally:
         fh.close()
+        if jsonl_fh is not None:
+            jsonl_fh.close()
 
 
 if __name__ == "__main__":
