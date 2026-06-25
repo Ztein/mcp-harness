@@ -19,6 +19,7 @@ import argparse
 import asyncio
 import json
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, TextIO
@@ -29,7 +30,7 @@ from mcp.client.streamable_http import (  # type: ignore[attr-defined]  # create
     streamable_http_client,
 )
 
-from .engine import LlmFn, run_turn
+from .engine import LlmFn, RunSummary, run_turn, tally_turn
 from .events import AssistantText, Event, ToolCall, ToolResult, TurnError, UserTurn
 from .jsonl import JsonlSink
 from .llm import chat_completion, llm_model
@@ -116,7 +117,7 @@ async def main(
     llm: LlmFn = _llm_message,
     jsonl: JsonlSink | None = None,
     expect_tools: set[str] | None = None,
-) -> None:
+) -> RunSummary:
     url, key = os.environ["MCP_URL"], os.environ["MCP_KEY"]
     async with (
         create_mcp_http_client(headers={"Authorization": f"Bearer {key}"}) as http_client,
@@ -151,12 +152,17 @@ async def main(
                 system_chars=len(system),
             )
 
+        # Headless: i piped läge (ingen TTY) skrivs ingen interaktiv prompt som
+        # annars skräpar ner loggen (T022).
+        prompt = "\n> " if sys.stdin.isatty() else ""
+        summary = RunSummary()
         messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
         while True:
-            user = await _read("\n> ")
+            user = await _read(prompt)
             if user is None or user in ("/quit", "/exit"):
                 print("Hej då.")
-                return
+                print(summary.line())
+                return summary
             if not user:
                 continue
             if user == "/tools":
@@ -175,6 +181,7 @@ async def main(
             events = await run_turn(
                 session=session, llm=llm, messages=messages, oai_tools=oai_tools
             )
+            tally_turn(summary, events)
             for event in events:
                 _print_event(event)
                 transcript.write(event)
@@ -221,7 +228,7 @@ def cli() -> None:
     jsonl_fh = open(args.jsonl, "a", encoding="utf-8") if args.jsonl else None
     jsonl_sink = JsonlSink(jsonl_fh) if jsonl_fh is not None else None
     try:
-        asyncio.run(
+        summary = asyncio.run(
             main(
                 _load_system(args.system),
                 TranscriptSink(fh),
@@ -234,6 +241,8 @@ def cli() -> None:
         fh.close()
         if jsonl_fh is not None:
             jsonl_fh.close()
+    # Ren exit-kod: ≠0 om någon tur slutligen misslyckades (PRD §11).
+    raise SystemExit(summary.exit_code)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from mcp.client.session import ClientSession
@@ -26,6 +27,35 @@ from .events import AssistantText, Event, ToolCall, ToolResult, TurnError
 LlmFn = Callable[[list[dict[str, Any]], list[dict[str, Any]]], dict[str, Any]]
 
 DEFAULT_MAX_TOOL_CALLS = 50
+
+
+@dataclass
+class RunSummary:
+    """Aggregerat utfall över en körning — gör den green/röd programmatiskt (T022)."""
+
+    turns: int = 0
+    tool_calls: int = 0
+    failed_turns: int = 0
+
+    @property
+    def exit_code(self) -> int:
+        """0 om alla turer lyckades, annars 1 (PRD §11)."""
+        return 1 if self.failed_turns else 0
+
+    def line(self) -> str:
+        return (
+            f"Sammanfattning: {self.turns} turer, {self.tool_calls} verktygsanrop, "
+            f"{self.failed_turns} misslyckade turer."
+        )
+
+
+def tally_turn(summary: RunSummary, events: list[Event]) -> None:
+    """Räkna in en turs händelser. En tur är misslyckad endast om dess sista
+    händelse är ett ``TurnError`` (ett hanterat verktygsfel räknas inte)."""
+    summary.turns += 1
+    summary.tool_calls += sum(isinstance(e, ToolCall) for e in events)
+    if events and isinstance(events[-1], TurnError):
+        summary.failed_turns += 1
 
 
 def extract_tool_result(name: str, call_id: str, result: CallToolResult) -> ToolResult:
