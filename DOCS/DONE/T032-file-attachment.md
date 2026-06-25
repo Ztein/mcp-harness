@@ -1,6 +1,6 @@
 # T032 — fil-uppladdning / kontext
 
-**Status:** TODO · **Fas:** 3 · **Prioritet:** P2 · **Beror på:** T011, T012
+**Status:** DONE · **Fas:** 3 · **Prioritet:** P2 · **Beror på:** T011, T012
 
 ## Varför
 
@@ -20,11 +20,11 @@ i JSONL (namn, typ, storlek — inte nödvändigtvis hela innehållet).
 
 ## Definition of Done
 
-- [ ] `--attach`/`/attach` läser fil och fogar in den i nästa tur.
-- [ ] Textfil → inline-kontext; modellen ser innehållet.
-- [ ] Bild/PDF → multimodalt block mot stödjande modell; mot icke-stödjande →
+- [x] `--attach`/`/attach` läser fil och fogar in den i nästa tur.
+- [x] Textfil → inline-kontext; modellen ser innehållet.
+- [x] Bild/PDF → multimodalt block mot stödjande modell; mot icke-stödjande →
       **fail-hard** med tydligt fel (ingen tyst nedgradering).
-- [ ] Bilaga registreras i JSONL (metadata).
+- [x] Bilaga registreras i JSONL (metadata).
 
 ## Testfall (skriv först)
 

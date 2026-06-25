@@ -31,9 +31,18 @@ from mcp.client.streamable_http import (  # type: ignore[attr-defined]  # create
     streamable_http_client,
 )
 
+from .attachments import Attachment, build_user_content, load_attachment
 from .config import ServerConfig, load_servers
 from .engine import DEFAULT_MAX_TOOL_CALLS, LlmFn, RunSummary, run_turn, tally_turn
-from .events import AssistantText, Event, ToolCall, ToolResult, TurnError, UserTurn
+from .events import (
+    AssistantText,
+    AttachmentAdded,
+    Event,
+    ToolCall,
+    ToolResult,
+    TurnError,
+    UserTurn,
+)
 from .jsonl import JsonlSink
 from .llm import chat_completion, llm_model
 from .profiles import frame_system, load_profile
@@ -150,6 +159,7 @@ async def main(
     max_tool_calls: int = DEFAULT_MAX_TOOL_CALLS,
     profile_name: str = "raw",
     approximation_note: str = "",
+    attachments: list[Attachment] | None = None,
 ) -> RunSummary:
     async with AsyncExitStack() as stack:
         sessions, per_server = await _connect_all(stack, servers)
@@ -196,6 +206,16 @@ async def main(
                 system_chars=len(system),
             )
 
+        def emit(event: Event) -> None:
+            transcript.write(event)
+            if jsonl is not None:
+                jsonl.write(event)
+
+        # Bilagor som väntar på att matas in i nästa tur (--attach + /attach, T032).
+        pending: list[Attachment] = list(attachments or [])
+        for a in pending:
+            emit(AttachmentAdded(name=a.name, kind=a.kind, size=a.size))
+
         # Headless: i piped läge (ingen TTY) skrivs ingen interaktiv prompt som
         # annars skräpar ner loggen (T022).
         prompt = "\n> " if sys.stdin.isatty() else ""
@@ -214,14 +234,23 @@ async def main(
                 continue
             if user == "/reset":
                 messages = [{"role": "system", "content": system}]
+                pending = []
                 print("(historik nollställd)")
                 continue
+            if user.startswith("/attach "):
+                try:
+                    a = load_attachment(user[len("/attach ") :].strip())
+                except SystemExit as exc:  # ogiltig bilaga ska inte döda sessionen
+                    print(f"  {exc}")
+                    continue
+                pending.append(a)
+                emit(AttachmentAdded(name=a.name, kind=a.kind, size=a.size))
+                print(f"  📎 {a.name} ({a.kind}, {a.size} B) — matas in i nästa tur.")
+                continue
 
-            messages.append({"role": "user", "content": user})
-            user_event = UserTurn(text=user)
-            transcript.write(user_event)
-            if jsonl is not None:
-                jsonl.write(user_event)
+            messages.append({"role": "user", "content": build_user_content(user, pending)})
+            pending = []  # förbrukade i denna tur
+            emit(UserTurn(text=user))
             events = await run_turn(
                 call_tool=call_tool,
                 llm=llm,
@@ -232,9 +261,7 @@ async def main(
             tally_turn(summary, events)
             for event in events:
                 _print_event(event)
-                transcript.write(event)
-                if jsonl is not None:
-                    jsonl.write(event)
+                emit(event)
 
 
 def cli() -> None:
@@ -283,6 +310,13 @@ def cli() -> None:
         help="Harness-profil (profiles/<namn>.json eller sökväg). Ramar skillen och "
         "kan scope:a verktyg. Default: raw (ingen extra ramning).",
     )
+    parser.add_argument(
+        "--attach",
+        action="append",
+        metavar="FIL",
+        help="Bifoga en fil till första turen (text inline, bild multimodalt). "
+        "Kan upprepas. Även /attach <fil> i chatten.",
+    )
     args = parser.parse_args()
     profile = load_profile(args.profile)
     # Profilen ramar skillen (runt, inte över) och kan scope:a verktyg.
@@ -320,6 +354,7 @@ def cli() -> None:
                 max_tool_calls=args.max_tool_calls_per_turn,
                 profile_name=profile.name,
                 approximation_note=profile.approximation_note,
+                attachments=[load_attachment(f) for f in (args.attach or [])],
             )
         )
     finally:
