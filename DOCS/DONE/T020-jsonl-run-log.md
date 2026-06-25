@@ -1,6 +1,6 @@
 # T020 — JSONL-körlogg, versionerat schema, otrunkerat
 
-**Status:** TODO · **Fas:** 2 · **Prioritet:** P0 · **Beror på:** T011
+**Status:** DONE · **Fas:** 2 · **Prioritet:** P0 · **Beror på:** T011
 
 ## Varför
 
@@ -23,13 +23,13 @@ men fälten reserveras i schemat nu.
 
 ## Definition of Done
 
-- [ ] `--jsonl <fil>` skriver giltig JSONL (en JSON per rad, går att `json.loads`
+- [x] `--jsonl <fil>` skriver giltig JSONL (en JSON per rad, går att `json.loads`
       rad-för-rad).
-- [ ] Varje rad bär `schema_version` och `type`.
-- [ ] `tool_call`-rader bär **fullständiga** args; `tool_result`-rader bär
+- [x] Varje rad bär `schema_version` och `type`.
+- [x] `tool_call`-rader bär **fullständiga** args; `tool_result`-rader bär
       **otrunkerat** svar — verifierat med ett svar längre än människo-vyns klipp.
-- [ ] Loggen flushas löpande (en avbruten körning lämnar läsbara rader).
-- [ ] Schemat dokumenteras i `DOCS/` eller `docs/jsonl-schema.md` och versioneras.
+- [x] Loggen flushas löpande (en avbruten körning lämnar läsbara rader).
+- [x] Schemat dokumenteras i `DOCS/` eller `docs/jsonl-schema.md` och versioneras.
 
 ## Testfall (skriv först)
 
