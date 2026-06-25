@@ -1,18 +1,28 @@
 """Delade testfixturer.
 
-Princip (PRD §11): testa på riktigt. ``fake_llm`` startar en **riktig**
-HTTP-server på en ledig port och svarar med köade OpenAI-kompatibla svar — så
-hela kodvägen i ``llm.py`` (request-bygge, headers, proxy-hantering, retry,
-JSON-parse) verkligen exekveras. Ingen ``unittest.mock`` av ``urllib``.
+Princip (PRD §11): testa på riktigt.
+
+- ``fake_llm`` startar en **riktig** HTTP-server på en ledig port och svarar med
+  köade OpenAI-kompatibla svar — så hela kodvägen i ``llm.py`` (request-bygge,
+  headers, proxy-hantering, retry, JSON-parse) verkligen exekveras. Ingen
+  ``unittest.mock`` av ``urllib``.
+- ``mcp_session`` ger en **riktig** ``ClientSession`` kopplad in-process till en
+  fejk-MCP-server med kontrollerade verktyg (echo, multi_block, boom,
+  structured). Inget mockar ``ClientSession``/``call_tool``/``list_tools``.
 """
 
 from __future__ import annotations
 
 import json
 import threading
+from contextlib import AbstractAsyncContextManager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import mcp.types as mcp_types
 import pytest
+from mcp.client.session import ClientSession
+from mcp.server.fastmcp import FastMCP
+from mcp.shared.memory import create_connected_server_and_client_session
 
 
 class FakeLLM:
@@ -93,3 +103,46 @@ def fake_llm(monkeypatch: pytest.MonkeyPatch) -> FakeLLM:
     monkeypatch.delenv("LLM_PARAMS", raising=False)
     yield fake
     fake.stop()
+
+
+def build_fake_mcp_server() -> FastMCP:
+    """En minimal MCP-server med kontrollerade verktyg, enbart för tester.
+
+    Verktygen är valda för att täcka de svåra fallen:
+    - ``echo``        — enkel runtripp (ett content-block).
+    - ``multi_block`` — **flera** content-block (reproducerar T012-buggen där
+      bara ``content[0]`` läses).
+    - ``boom``        — kastar fel (fel-vägen).
+    - ``structured``  — JSON-struktur (fält-assertion, PRD §11).
+    """
+    srv = FastMCP("test-mcp")
+
+    @srv.tool()
+    def echo(text: str) -> str:
+        return text
+
+    @srv.tool()
+    def multi_block() -> list[mcp_types.TextContent]:
+        return [
+            mcp_types.TextContent(type="text", text="block-A"),
+            mcp_types.TextContent(type="text", text="block-B"),
+        ]
+
+    @srv.tool()
+    def boom() -> str:
+        raise ValueError("avsiktligt fel")
+
+    @srv.tool()
+    def structured() -> dict:
+        return {"id": "abc-123", "status": "ok", "missing": ["alpha", "beta"]}
+
+    return srv
+
+
+@pytest.fixture
+def connected_session() -> AbstractAsyncContextManager[ClientSession]:
+    """En **oöppnad** async context manager för en ClientSession kopplad till
+    fejk-MCP-servern. Testet öppnar den själv (``async with connected_session as
+    session:``) så att anyios cancel-scopes öppnas/stängs i samma task — annars
+    far pytest-asyncios fixtur-teardown i en annan task och anyio failar."""
+    return create_connected_server_and_client_session(build_fake_mcp_server())
