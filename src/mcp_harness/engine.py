@@ -13,11 +13,10 @@ strukturerat innehåll bevaras.
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
-from mcp.client.session import ClientSession
 from mcp.types import CallToolResult, TextContent
 
 from .events import AssistantText, Event, ToolCall, ToolResult, TurnError
@@ -25,6 +24,10 @@ from .events import AssistantText, Event, ToolCall, ToolResult, TurnError
 # En LlmFn tar (messages, tools) och returnerar assistent-meddelandet (med ev.
 # tool_calls). Synkron — motorn bryr sig inte om hur anropet görs.
 LlmFn = Callable[[list[dict[str, Any]], list[dict[str, Any]]], dict[str, Any]]
+
+# En ToolCaller kör ett verktyg och ger dess råa resultat. För en server är det
+# ``session.call_tool``; för flera (T030) en router som väljer rätt session.
+ToolCaller = Callable[[str, dict[str, Any]], Awaitable[CallToolResult]]
 
 DEFAULT_MAX_TOOL_CALLS = 50
 
@@ -85,7 +88,7 @@ def extract_tool_result(name: str, call_id: str, result: CallToolResult) -> Tool
 
 async def run_turn(
     *,
-    session: ClientSession,
+    call_tool: ToolCaller,
     llm: LlmFn,
     messages: list[dict[str, Any]],
     oai_tools: list[dict[str, Any]],
@@ -123,7 +126,7 @@ async def run_turn(
             call_id = tc["id"]
             events.append(ToolCall(name=name, arguments=args, call_id=call_id))
             try:
-                result = await session.call_tool(name, args)
+                result = await call_tool(name, args)
                 tr = extract_tool_result(name, call_id, result)
             except Exception as exc:
                 tr = ToolResult(

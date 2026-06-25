@@ -42,7 +42,9 @@ async def test_batch_continues_after_midstream_error(connected_session: Session)
         messages: list[dict[str, Any]] = [{"role": "system", "content": "s"}]
         for i in range(3):
             messages.append({"role": "user", "content": f"tur {i}"})
-            events = await run_turn(session=session, llm=llm, messages=messages, oai_tools=[])
+            events = await run_turn(
+                call_tool=session.call_tool, llm=llm, messages=messages, oai_tools=[]
+            )
             tally_turn(summary, events)
             results.append(events)
 

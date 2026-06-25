@@ -1,6 +1,6 @@
 # T030 — flera MCP-servrar via config
 
-**Status:** TODO · **Fas:** 3 · **Prioritet:** P1 · **Beror på:** T010, T021
+**Status:** DONE · **Fas:** 3 · **Prioritet:** P1 · **Beror på:** T010, T021
 
 ## Varför
 
@@ -21,11 +21,11 @@ stdio-prioritet).
 
 ## Definition of Done
 
-- [ ] Config-fil läser flera Streamable-HTTP-servrar.
-- [ ] Verktyg aggregeras; namn-krockar hanteras deterministiskt och **synligt**
+- [x] Config-fil läser flera Streamable-HTTP-servrar.
+- [x] Verktyg aggregeras; namn-krockar hanteras deterministiskt och **synligt**
       (aldrig tyst överskuggning).
-- [ ] Saknad/trasig config failar hårt med tydligt meddelande.
-- [ ] JSONL-headern (T020) listar alla anslutna servrar + per-server-fingeravtryck.
+- [x] Saknad/trasig config failar hårt med tydligt meddelande.
+- [x] JSONL-headern (T020) listar alla anslutna servrar + per-server-fingeravtryck.
 
 ## Testfall (skriv först)
 
