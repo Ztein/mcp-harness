@@ -1,6 +1,6 @@
 # T003 — CI-pipeline (ruff, mypy, pytest)
 
-**Status:** TODO · **Fas:** 0 · **Prioritet:** P0 · **Beror på:** T001
+**Status:** DONE · **Fas:** 0 · **Prioritet:** P0 · **Beror på:** T001
 
 ## Varför
 

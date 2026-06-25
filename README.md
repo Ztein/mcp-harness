@@ -1,5 +1,7 @@
 # mcp-harness
 
+[![CI](https://github.com/Ztein/mcp-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/Ztein/mcp-harness/actions/workflows/ci.yml)
+
 Ett **terminalfönster för att testköra MCP-servrar** genom en riktig LLM och en
 systemprompt — precis som en värd-harness (Intric, Claude Desktop, Cursor, en
 egen agent) skulle göra, fast i terminalen och under din fulla kontroll.

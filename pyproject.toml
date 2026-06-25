@@ -40,6 +40,9 @@ select = ["E", "F", "I", "B", "UP"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+    "real_endpoint: kräver en riktig LLM/MCP-endpoint (hoppas i CI; körs lokalt med skarp .env)",
+]
 
 [tool.mypy]
 python_version = "3.11"
