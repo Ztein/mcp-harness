@@ -21,6 +21,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from typing import Any
 
 
 def _require(name: str) -> str:
@@ -39,12 +40,13 @@ def llm_model(override: str | None = None) -> str:
     return override or _require("LLM_MODEL")
 
 
-def _extra_params() -> dict:
+def _extra_params() -> dict[str, Any]:
     raw = os.environ.get("LLM_PARAMS", "").strip()
     if not raw:
         return {}
     try:
-        return json.loads(raw)
+        parsed: dict[str, Any] = json.loads(raw)
+        return parsed
     except json.JSONDecodeError as exc:
         raise SystemExit(f"❌ LLM_PARAMS är inte giltig JSON: {exc}") from exc
 
@@ -60,20 +62,20 @@ def _opener() -> urllib.request.OpenerDirector:
 
 
 def chat_completion(
-    messages: list[dict],
-    tools: list[dict] | None = None,
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]] | None = None,
     *,
     model: str | None = None,
-    extra: dict | None = None,
+    extra: dict[str, Any] | None = None,
     max_retries: int = 3,
     timeout: float = 180.0,
-) -> dict:
+) -> dict[str, Any]:
     """Ett OpenAI-kompatibelt /chat/completions-anrop. Returnerar HELA svaret
     (inkl. usage). Retry på transienta nätverksfel. `extra` är per-anrop-
     body-parametrar (t.ex. {"temperature": 0}) — överstyr LLM_PARAMS."""
     base = _require("LLM_BASE_URL").rstrip("/")
     key = _require("LLM_API_KEY")
-    body: dict = {
+    body: dict[str, Any] = {
         "model": llm_model(model),
         "messages": messages,
         **_extra_params(),
@@ -92,7 +94,8 @@ def chat_completion(
     for attempt in range(max_retries):
         try:
             with opener.open(req, timeout=timeout) as resp:
-                return json.load(resp)
+                parsed: dict[str, Any] = json.load(resp)
+                return parsed
         except (TimeoutError, urllib.error.URLError, ConnectionError) as exc:
             last = exc
             # T161: varje misslyckat försök syns — annars ser operatören bara

@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Avbryt äldre körningar på samma branch när nya pushas.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    env:
+      # Håll alla uv-kommandon på samma interpreter genom hela jobbet.
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installera uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Synka miljö (med dev-grupp)
+        run: uv sync --group dev
+
+      - name: ruff check
+        run: uv run --group dev ruff check .
+
+      - name: ruff format
+        run: uv run --group dev ruff format --check .
+
+      - name: mypy
+        run: uv run --group dev mypy
+
+      # Skarpa tester (real_endpoint) kräver riktig LLM/MCP och hoppas i CI;
+      # fejk-baserade tester (T001/T002) körs alltid.
+      - name: pytest
+        run: uv run --group dev pytest -m "not real_endpoint"

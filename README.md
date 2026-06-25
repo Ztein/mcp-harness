@@ -1,5 +1,7 @@
 # mcp-harness
 
+[![CI](https://github.com/Ztein/mcp-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/Ztein/mcp-harness/actions/workflows/ci.yml)
+
 Ett **terminalfönster för att testköra MCP-servrar** genom en riktig LLM och en
 systemprompt — precis som en värd-harness (Intric, Claude Desktop, Cursor, en
 egen agent) skulle göra, fast i terminalen och under din fulla kontroll.
@@ -37,3 +39,18 @@ Flaggor: `--system <fil>` (systemprompt/skill), `--transcript <fil>`,
 MVP (kopierad kärna): **en** MCP-server via `MCP_URL`/`MCP_KEY`, en systemprompt,
 verktygs-allowlist, läsbart transkript. Roadmap mot flera servrar, harness-profiler
 och fil-uppladdning i [PRD.md](PRD.md).
+
+## Utveckling
+
+Arbetet drivs av tickets med strikt TDD. Se **[DOCS/README.md](DOCS/README.md)**
+för arbetstavlan (TODO/DOING/DONE) och **[CONTRIBUTING.md](CONTRIBUTING.md)** för
+arbetssättet. Kör grinden lokalt:
+
+```bash
+uv sync --group dev
+uv run --group dev ruff check . && uv run --group dev mypy && uv run --group dev pytest
+```
+
+## Licens
+
+[MIT](LICENSE).
