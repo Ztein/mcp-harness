@@ -30,7 +30,7 @@ from mcp.client.streamable_http import (  # type: ignore[attr-defined]  # create
     streamable_http_client,
 )
 
-from .engine import LlmFn, RunSummary, run_turn, tally_turn
+from .engine import DEFAULT_MAX_TOOL_CALLS, LlmFn, RunSummary, run_turn, tally_turn
 from .events import AssistantText, Event, ToolCall, ToolResult, TurnError, UserTurn
 from .jsonl import JsonlSink
 from .llm import chat_completion, llm_model
@@ -117,6 +117,7 @@ async def main(
     llm: LlmFn = _llm_message,
     jsonl: JsonlSink | None = None,
     expect_tools: set[str] | None = None,
+    max_tool_calls: int = DEFAULT_MAX_TOOL_CALLS,
 ) -> RunSummary:
     url, key = os.environ["MCP_URL"], os.environ["MCP_KEY"]
     async with (
@@ -179,7 +180,11 @@ async def main(
             if jsonl is not None:
                 jsonl.write(user_event)
             events = await run_turn(
-                session=session, llm=llm, messages=messages, oai_tools=oai_tools
+                session=session,
+                llm=llm,
+                messages=messages,
+                oai_tools=oai_tools,
+                max_tool_calls=max_tool_calls,
             )
             tally_turn(summary, events)
             for event in events:
@@ -217,6 +222,13 @@ def cli() -> None:
         help="Kommaseparerad förväntad verktygsmängd (exakt). Avvikelse failar högljutt "
         "innan något LLM-anrop — stoppar en stale server från att maskera sig.",
     )
+    parser.add_argument(
+        "--max-tool-calls-per-turn",
+        type=int,
+        default=DEFAULT_MAX_TOOL_CALLS,
+        help=f"Tak på verktygsanrop per tur (backstop mot loopande modell). "
+        f"Default {DEFAULT_MAX_TOOL_CALLS}.",
+    )
     args = parser.parse_args()
     tools_allow = {t.strip() for t in args.tools.split(",") if t.strip()} if args.tools else None
     expect_tools = (
@@ -235,6 +247,7 @@ def cli() -> None:
                 tools_allow,
                 jsonl=jsonl_sink,
                 expect_tools=expect_tools,
+                max_tool_calls=args.max_tool_calls_per_turn,
             )
         )
     finally:

@@ -1,6 +1,6 @@
 # T023 — tur-loop-broms + batch-resiliens
 
-**Status:** TODO · **Fas:** 2 · **Prioritet:** P1 · **Beror på:** T011, T022
+**Status:** DONE · **Fas:** 2 · **Prioritet:** P1 · **Beror på:** T011, T022
 
 ## Varför
 
@@ -25,11 +25,11 @@ Två P1 från test-agenten (PRD §11):
 
 ## Definition of Done
 
-- [ ] Taket är konfigurerbart och har en default; att nå det är ett **högljutt**
+- [x] Taket är konfigurerbart och har en default; att nå det är ett **högljutt**
       fel (ingen tyst trunkering av loopen).
-- [ ] Ett slutligt LLM-fel på tur k korrumperar inte tur k+1…n: efterföljande
+- [x] Ett slutligt LLM-fel på tur k korrumperar inte tur k+1…n: efterföljande
       turer körs och loggas tolkbart.
-- [ ] Både broms och batch-fel reflekteras i exit-koden (T022) och sammanfattningen.
+- [x] Både broms och batch-fel reflekteras i exit-koden (T022) och sammanfattningen.
 
 ## Testfall (skriv först)
 
