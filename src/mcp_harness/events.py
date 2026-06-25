@@ -60,4 +60,14 @@ class AttachmentAdded:
     type: Literal["attachment"] = "attachment"
 
 
-Event = UserTurn | ToolCall | ToolResult | AssistantText | TurnError | AttachmentAdded
+@dataclass
+class TurnMeta:
+    """Mätvärden för en avslutad tur (T033): latens och ev. token-usage."""
+
+    latency_ms: float
+    llm_calls: int | None = None
+    usage: dict[str, float] | None = None
+    type: Literal["turn_meta"] = "turn_meta"
+
+
+Event = UserTurn | ToolCall | ToolResult | AssistantText | TurnError | AttachmentAdded | TurnMeta

@@ -20,6 +20,7 @@ import asyncio
 import json
 import os
 import sys
+import time
 from contextlib import AsyncExitStack
 from datetime import datetime
 from pathlib import Path
@@ -41,6 +42,7 @@ from .events import (
     ToolCall,
     ToolResult,
     TurnError,
+    TurnMeta,
     UserTurn,
 )
 from .jsonl import JsonlSink
@@ -127,6 +129,49 @@ def _llm_params() -> dict[str, Any] | None:
         return None
 
 
+def merge_params(
+    base: dict[str, Any] | None, temperature: float | None, seed: int | None
+) -> dict[str, Any] | None:
+    """Slå ihop bas-params med ev. --temperature/--seed (registreras i headern, T033)."""
+    params = dict(base or {})
+    if temperature is not None:
+        params["temperature"] = temperature
+    if seed is not None:
+        params["seed"] = seed
+    return params or None
+
+
+class MeteredLlm:
+    """LlmFn-wrapper som mäter latens och summerar token-usage per tur (T033).
+
+    Mäter och *registrerar* — dömer inte (PRD §7). ``begin_turn`` nollställer
+    ackumulatorerna inför varje tur."""
+
+    def __init__(self, extra_params: dict[str, Any] | None = None) -> None:
+        self._extra = extra_params or None
+        self.turn_latency_ms = 0.0
+        self.turn_usage: dict[str, float] = {}
+        self.turn_calls = 0
+
+    def begin_turn(self) -> None:
+        self.turn_latency_ms = 0.0
+        self.turn_usage = {}
+        self.turn_calls = 0
+
+    def __call__(
+        self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        t0 = time.monotonic()
+        resp = chat_completion(messages, tools, timeout=120, extra=self._extra)
+        self.turn_latency_ms += (time.monotonic() - t0) * 1000
+        self.turn_calls += 1
+        for key, value in (resp.get("usage") or {}).items():
+            if isinstance(value, int | float):
+                self.turn_usage[key] = self.turn_usage.get(key, 0) + value
+        message: dict[str, Any] = resp["choices"][0]["message"]
+        return message
+
+
 async def _connect_all(
     stack: AsyncExitStack, servers: list[ServerConfig]
 ) -> tuple[dict[str, ClientSession], list[tuple[str, list[Any]]]]:
@@ -160,6 +205,7 @@ async def main(
     profile_name: str = "raw",
     approximation_note: str = "",
     attachments: list[Attachment] | None = None,
+    params: dict[str, Any] | None = None,
 ) -> RunSummary:
     async with AsyncExitStack() as stack:
         sessions, per_server = await _connect_all(stack, servers)
@@ -196,7 +242,7 @@ async def main(
             # Självbeskrivande körning (PRD §11): modell, params, servrar, meny, profil.
             jsonl.write_header(
                 model=llm_model(),
-                params=_llm_params(),
+                params=params if params is not None else _llm_params(),
                 mcp_url=",".join(s.url for s in servers),
                 servers=[s.name for s in servers],
                 tools=names,
@@ -251,6 +297,9 @@ async def main(
             messages.append({"role": "user", "content": build_user_content(user, pending)})
             pending = []  # förbrukade i denna tur
             emit(UserTurn(text=user))
+            if isinstance(llm, MeteredLlm):
+                llm.begin_turn()
+            started = time.monotonic()
             events = await run_turn(
                 call_tool=call_tool,
                 llm=llm,
@@ -258,10 +307,22 @@ async def main(
                 oai_tools=oai_tools,
                 max_tool_calls=max_tool_calls,
             )
+            latency_ms = (time.monotonic() - started) * 1000
             tally_turn(summary, events)
             for event in events:
                 _print_event(event)
                 emit(event)
+            # Mät och registrera per tur (T033) — döm inte (PRD §7).
+            if isinstance(llm, MeteredLlm):
+                emit(
+                    TurnMeta(
+                        latency_ms=round(latency_ms, 1),
+                        llm_calls=llm.turn_calls,
+                        usage=llm.turn_usage or None,
+                    )
+                )
+            else:
+                emit(TurnMeta(latency_ms=round(latency_ms, 1)))
 
 
 def cli() -> None:
@@ -317,6 +378,12 @@ def cli() -> None:
         help="Bifoga en fil till första turen (text inline, bild multimodalt). "
         "Kan upprepas. Även /attach <fil> i chatten.",
     )
+    parser.add_argument(
+        "--temperature", type=float, help="Sätt temperature och registrera den i JSONL-headern."
+    )
+    parser.add_argument(
+        "--seed", type=int, help="Sätt seed (där modellen tillåter) och registrera den i headern."
+    )
     args = parser.parse_args()
     profile = load_profile(args.profile)
     # Profilen ramar skillen (runt, inte över) och kan scope:a verktyg.
@@ -339,6 +406,9 @@ def cli() -> None:
         if not mcp_url or not mcp_key:
             raise SystemExit("❌ MCP_URL/MCP_KEY saknas — sätt dem eller använd --config.")
         servers = [ServerConfig(name="default", url=mcp_url, key=mcp_key)]
+    # Self-describing körning (T033): registrera seed/temperature och mät per tur.
+    params = merge_params(_llm_params(), args.temperature, args.seed)
+    metered_llm = MeteredLlm(params)
     fh = _open_transcript(args.transcript)
     jsonl_fh = open(args.jsonl, "a", encoding="utf-8") if args.jsonl else None
     jsonl_sink = JsonlSink(jsonl_fh) if jsonl_fh is not None else None
@@ -349,12 +419,14 @@ def cli() -> None:
                 TranscriptSink(fh),
                 servers,
                 tools_allow,
+                llm=metered_llm,
                 jsonl=jsonl_sink,
                 expect_tools=expect_tools,
                 max_tool_calls=args.max_tool_calls_per_turn,
                 profile_name=profile.name,
                 approximation_note=profile.approximation_note,
                 attachments=[load_attachment(f) for f in (args.attach or [])],
+                params=params,
             )
         )
     finally:

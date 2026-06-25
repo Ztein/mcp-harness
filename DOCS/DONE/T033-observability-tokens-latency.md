@@ -1,6 +1,6 @@
 # T033 — observerbarhet+ (token/latens, körnings-diff)
 
-**Status:** TODO · **Fas:** 3 · **Prioritet:** P2 · **Beror på:** T020
+**Status:** DONE · **Fas:** 3 · **Prioritet:** P2 · **Beror på:** T020
 
 ## Varför
 
@@ -20,9 +20,9 @@ litet `diff`-hjälpmedel eller dokumenterat sätt att jämföra två JSONL-körn
 
 ## Definition of Done
 
-- [ ] Varje tur loggar latens (ms) och token-`usage` när endpointen ger det.
-- [ ] `temperature`/`seed` kan sättas och registreras i JSONL-headern.
-- [ ] Två körningar med samma input är diff-bara på ett dokumenterat sätt
+- [x] Varje tur loggar latens (ms) och token-`usage` när endpointen ger det.
+- [x] `temperature`/`seed` kan sättas och registreras i JSONL-headern.
+- [x] Två körningar med samma input är diff-bara på ett dokumenterat sätt
       (headern gör varje körning självbeskrivande).
 
 ## Testfall (skriv först)
