@@ -1,6 +1,6 @@
 # T004 — verktygskedja + LICENSE (ruff format, mypy, pre-commit)
 
-**Status:** TODO · **Fas:** 0 · **Prioritet:** P1 · **Beror på:** T001
+**Status:** DONE · **Fas:** 0 · **Prioritet:** P1 · **Beror på:** T001
 
 ## Varför
 

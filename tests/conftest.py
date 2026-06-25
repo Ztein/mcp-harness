@@ -15,14 +15,19 @@ from __future__ import annotations
 
 import json
 import threading
+from collections.abc import Iterator
 from contextlib import AbstractAsyncContextManager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
 
 import mcp.types as mcp_types
 import pytest
 from mcp.client.session import ClientSession
 from mcp.server.fastmcp import FastMCP
 from mcp.shared.memory import create_connected_server_and_client_session
+from mcp.types import CallToolResult
+
+JsonDict = dict[str, Any]
 
 
 class FakeLLM:
@@ -33,13 +38,13 @@ class FakeLLM:
     """
 
     def __init__(self) -> None:
-        self._responses: list[tuple[int, dict]] = []
-        self.requests: list[dict] = []
+        self._responses: list[tuple[int, JsonDict]] = []
+        self.requests: list[JsonDict] = []
         self._server: ThreadingHTTPServer | None = None
         self._thread: threading.Thread | None = None
         self.url: str | None = None
 
-    def queue(self, body: dict, status: int = 200) -> FakeLLM:
+    def queue(self, body: JsonDict, status: int = 200) -> FakeLLM:
         self._responses.append((status, body))
         return self
 
@@ -49,7 +54,7 @@ class FakeLLM:
             self._responses.append((status, {"error": {"message": "transient"}}))
         return self
 
-    def _next(self) -> tuple[int, dict]:
+    def _next(self) -> tuple[int, JsonDict]:
         if self._responses:
             return self._responses.pop(0)
         return (200, {"choices": [{"message": {"content": "(default)"}}]})
@@ -93,7 +98,7 @@ class FakeLLM:
 
 
 @pytest.fixture
-def fake_llm(monkeypatch: pytest.MonkeyPatch) -> FakeLLM:
+def fake_llm(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeLLM]:
     """Startad fejk-LLM med ``LLM_*`` pekade på den. Stängs i teardown."""
     fake = FakeLLM().start()
     monkeypatch.setenv("LLM_BASE_URL", fake.url or "")
@@ -133,10 +138,19 @@ def build_fake_mcp_server() -> FastMCP:
         raise ValueError("avsiktligt fel")
 
     @srv.tool()
-    def structured() -> dict:
+    def structured() -> JsonDict:
         return {"id": "abc-123", "status": "ok", "missing": ["alpha", "beta"]}
 
     return srv
+
+
+def texts_of(result: CallToolResult) -> list[str]:
+    """Text ur **alla** text-block i ett verktygssvar, i ordning.
+
+    Smalnar av ContentBlock-unionen till TextContent. Återanvänds av T012:s
+    tester (full verktygssvars-trohet) — poängen är att aldrig tyst tappa ett
+    block (som ``content[0]`` gör)."""
+    return [b.text for b in result.content if isinstance(b, mcp_types.TextContent)]
 
 
 @pytest.fixture

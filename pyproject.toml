@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Terminalfönster för att testköra MCP-servrar genom en riktig LLM + systemprompt — och approximera andra MCP-värd-harnesses (Intric, Claude Desktop, Cursor, …)."
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Joel Stenberg", email = "l.j.stenberg@gmail.com" }]
 dependencies = [
     "mcp>=1.0",
 ]
@@ -15,6 +18,8 @@ mcp-harness = "mcp_harness.cli:cli"
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.24",
+    "mypy>=1.11",
+    "pre-commit>=3.7",
 ]
 
 [build-system]
@@ -35,3 +40,18 @@ select = ["E", "F", "I", "B", "UP"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "-ra"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src", "tests"]
+# TILLFÄLLIG SKULD: den ursprungliga monolitiska cli.py är inte strikt-typad och
+# bär bl.a. T012-buggen (content[0]). Den skrivs om i T011–T013 och återförs då
+# under strikt mypy (ta bort denna exclude när cli.py är refaktorerad).
+exclude = "src/mcp_harness/cli\\.py$"
+
+[[tool.mypy.overrides]]
+# Test-fixturer använder FastMCP:s otypade verktygs-dekoratorer; relaxa just det
+# i testkoden — produktionskoden (src) hålls strikt.
+module = "tests.*"
+disallow_untyped_decorators = false

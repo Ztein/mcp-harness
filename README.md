@@ -37,3 +37,18 @@ Flaggor: `--system <fil>` (systemprompt/skill), `--transcript <fil>`,
 MVP (kopierad kärna): **en** MCP-server via `MCP_URL`/`MCP_KEY`, en systemprompt,
 verktygs-allowlist, läsbart transkript. Roadmap mot flera servrar, harness-profiler
 och fil-uppladdning i [PRD.md](PRD.md).
+
+## Utveckling
+
+Arbetet drivs av tickets med strikt TDD. Se **[DOCS/README.md](DOCS/README.md)**
+för arbetstavlan (TODO/DOING/DONE) och **[CONTRIBUTING.md](CONTRIBUTING.md)** för
+arbetssättet. Kör grinden lokalt:
+
+```bash
+uv sync --group dev
+uv run --group dev ruff check . && uv run --group dev mypy && uv run --group dev pytest
+```
+
+## Licens
+
+[MIT](LICENSE).
