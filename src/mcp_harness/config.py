@@ -13,20 +13,52 @@ Config är data, inte kod (princip 1). En liten JSON-fil listar namngivna servra
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
 @dataclass
 class ServerConfig:
     name: str
-    url: str
+    transport: str = "http"  # "http" | "stdio"
+    # http
+    url: str = ""
     key: str = ""
+    # stdio (subprocess: command + args, pratar över stdin/stdout)
+    command: str = ""
+    args: list[str] = field(default_factory=list)
+    env: dict[str, str] | None = None
+    cwd: str | None = None
+
+
+def _parse_entry(entry: object, where: str) -> ServerConfig:
+    if not isinstance(entry, dict) or "name" not in entry:
+        raise SystemExit(f"❌ {where}: varje server kräver minst 'name'.")
+    name = str(entry["name"])
+    transport = str(entry.get("transport", "http"))
+    if transport == "stdio":
+        if "command" not in entry:
+            raise SystemExit(f"❌ {where}: stdio-server '{name}' kräver 'command'.")
+        return ServerConfig(
+            name=name,
+            transport="stdio",
+            command=str(entry["command"]),
+            args=[str(a) for a in entry.get("args", [])],
+            env={str(k): str(v) for k, v in (entry.get("env") or {}).items()} or None,
+            cwd=str(entry["cwd"]) if entry.get("cwd") else None,
+        )
+    if transport == "http":
+        if "url" not in entry:
+            raise SystemExit(f"❌ {where}: http-server '{name}' kräver 'url'.")
+        return ServerConfig(
+            name=name, transport="http", url=str(entry["url"]), key=str(entry.get("key", ""))
+        )
+    raise SystemExit(f"❌ {where}: okänd transport '{transport}' för '{name}' (http|stdio).")
 
 
 def load_servers(path: str | Path) -> list[ServerConfig]:
     """Läs en server-config. Failar hårt på trasig JSON, tom lista, saknade fält
-    eller dubbletter av server-namn."""
+    (per transport) eller dubbletter av server-namn."""
     p = Path(path)
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
@@ -40,11 +72,9 @@ def load_servers(path: str | Path) -> list[ServerConfig]:
     out: list[ServerConfig] = []
     seen: set[str] = set()
     for entry in servers:
-        if not isinstance(entry, dict) or "name" not in entry or "url" not in entry:
-            raise SystemExit(f"❌ {p}: varje server kräver minst 'name' och 'url'.")
-        name = str(entry["name"])
-        if name in seen:
-            raise SystemExit(f"❌ {p}: dubblett av server-namn '{name}'.")
-        seen.add(name)
-        out.append(ServerConfig(name=name, url=str(entry["url"]), key=str(entry.get("key", ""))))
+        cfg = _parse_entry(entry, str(p))
+        if cfg.name in seen:
+            raise SystemExit(f"❌ {p}: dubblett av server-namn '{cfg.name}'.")
+        seen.add(cfg.name)
+        out.append(cfg)
     return out

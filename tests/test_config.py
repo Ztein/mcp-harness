@@ -47,6 +47,34 @@ def test_load_servers_empty_fails_loudly(tmp_path: Path) -> None:
         load_servers(p)
 
 
+def test_load_stdio_server(tmp_path: Path) -> None:
+    p = tmp_path / "stdio.json"
+    p.write_text(
+        '{"servers":[{"name":"local","transport":"stdio","command":"python",'
+        '"args":["-m","srv"],"cwd":"/tmp"}]}',
+        encoding="utf-8",
+    )
+    servers = load_servers(p)
+    assert servers[0].transport == "stdio"
+    assert servers[0].command == "python"
+    assert servers[0].args == ["-m", "srv"]
+    assert servers[0].cwd == "/tmp"
+
+
+def test_load_stdio_missing_command_fails_loudly(tmp_path: Path) -> None:
+    p = tmp_path / "s.json"
+    p.write_text('{"servers":[{"name":"x","transport":"stdio"}]}', encoding="utf-8")
+    with pytest.raises(SystemExit):
+        load_servers(p)
+
+
+def test_load_http_missing_url_fails_loudly(tmp_path: Path) -> None:
+    p = tmp_path / "s.json"
+    p.write_text('{"servers":[{"name":"x"}]}', encoding="utf-8")
+    with pytest.raises(SystemExit):
+        load_servers(p)
+
+
 def test_load_servers_duplicate_name_fails_loudly(tmp_path: Path) -> None:
     p = tmp_path / "dup.json"
     p.write_text(

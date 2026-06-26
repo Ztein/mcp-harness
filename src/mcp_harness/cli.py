@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from mcp.client.session import ClientSession
+from mcp.client.stdio import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import (  # type: ignore[attr-defined]  # create_mcp_http_client ej i mcp:s __all__
     create_mcp_http_client,
     streamable_http_client,
@@ -179,12 +180,19 @@ async def _connect_all(
     sessions: dict[str, ClientSession] = {}
     per_server: list[tuple[str, list[Any]]] = []
     for srv in servers:
-        http_client = await stack.enter_async_context(
-            create_mcp_http_client(headers={"Authorization": f"Bearer {srv.key}"})
-        )
-        r, w, _ = await stack.enter_async_context(
-            streamable_http_client(srv.url, http_client=http_client)
-        )
+        if srv.transport == "stdio":
+            # Starta servern som subprocess och prata över stdin/stdout (T034).
+            params = StdioServerParameters(
+                command=srv.command, args=srv.args, env=srv.env, cwd=srv.cwd
+            )
+            r, w = await stack.enter_async_context(stdio_client(params))
+        else:
+            http_client = await stack.enter_async_context(
+                create_mcp_http_client(headers={"Authorization": f"Bearer {srv.key}"})
+            )
+            r, w, _ = await stack.enter_async_context(
+                streamable_http_client(srv.url, http_client=http_client)
+            )
         session = await stack.enter_async_context(ClientSession(r, w))
         await session.initialize()
         sessions[srv.name] = session

@@ -83,15 +83,23 @@ class BearerAuthASGI:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Körbar fejk-MCP över Streamable HTTP (T044).")
+    parser = argparse.ArgumentParser(description="Körbar fejk-MCP (Streamable HTTP eller stdio).")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--key", default="test-key", help="förväntad bearer-nyckel")
+    parser.add_argument(
+        "--stdio", action="store_true", help="kör över stdio istället för HTTP (T034)"
+    )
     args = parser.parse_args()
+
+    srv = build_fake_mcp_server(args.host, args.port)
+    if args.stdio:
+        # I stdio-läge är stdout protokoll-kanalen — skriv ingenting dit.
+        srv.run(transport="stdio")
+        return
 
     import uvicorn
 
-    srv = build_fake_mcp_server(args.host, args.port)
     app = BearerAuthASGI(srv.streamable_http_app(), args.key)
     print(f"Test-MCP lyssnar på http://{args.host}:{args.port}/mcp (bearer krävs)")
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
