@@ -11,3 +11,6 @@ build/
 *.env
 transcripts/
 uploads/
+
+# macOS
+.DS_Store
