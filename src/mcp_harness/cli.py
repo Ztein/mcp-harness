@@ -53,6 +53,7 @@ from .tools import (
     aggregate_tools,
     apply_allowlist,
     check_expected_tools,
+    render_tool_surface,
     to_openai_tools,
     tools_fingerprint,
 )
@@ -198,6 +199,20 @@ async def _connect_all(
         sessions[srv.name] = session
         per_server.append((srv.name, list((await session.list_tools()).tools)))
     return sessions, per_server
+
+
+async def dump_tool_surface(
+    servers: list[ServerConfig], tools_allow: set[str] | None, *, as_json: bool
+) -> str:
+    """Anslut, aggregera och scope:a verktygsytan, och rendera den (T025).
+
+    Non-interaktivt: inget LLM-anrop, ingen tur. För att versionsstämpla *vilken
+    yta som testades* (namn + beskrivning + parametrar) i en scriptad körning."""
+    async with AsyncExitStack() as stack:
+        _, per_server = await _connect_all(stack, servers)
+        all_tools, _ = aggregate_tools(per_server)
+        mcp_tools = apply_allowlist(all_tools, tools_allow)
+        return render_tool_surface(mcp_tools, as_json=as_json)
 
 
 async def main(
@@ -399,6 +414,17 @@ def cli() -> None:
         help="Låt ett verktygsfel (is_error) grinda körningen rött (exit≠0). "
         "Default: tool-fel rapporteras i sammanfattningen men ändrar inte exit-koden.",
     )
+    parser.add_argument(
+        "--list-tools",
+        action="store_true",
+        help="Anslut, skriv ut hela verktygsytan (namn, beskrivning, parametrar) och "
+        "avsluta. Inget LLM-anrop, ingen tur. Respekterar --tools/--profile-scoping.",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Maskinläsbar JSON-utdata för --list-tools (annars en kort lista).",
+    )
     args = parser.parse_args()
     profile = load_profile(args.profile)
     # Profilen ramar skillen (runt, inte över) och kan scope:a verktyg.
@@ -421,6 +447,11 @@ def cli() -> None:
         if not mcp_url or not mcp_key:
             raise SystemExit("❌ MCP_URL/MCP_KEY saknas — sätt dem eller använd --config.")
         servers = [ServerConfig(name="default", url=mcp_url, key=mcp_key)]
+    if args.list_tools:
+        # Non-interaktiv ytdump (T025): anslut, skriv schemat, avsluta. Inget LLM,
+        # ingen transkript-fil — så scriptade körningar kan versionsstämpla ytan.
+        print(asyncio.run(dump_tool_surface(servers, tools_allow, as_json=args.json)))
+        raise SystemExit(0)
     # Self-describing körning (T033): registrera seed/temperature och mät per tur.
     params = merge_params(_llm_params(), args.temperature, args.seed)
     metered_llm = MeteredLlm(params)

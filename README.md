@@ -32,7 +32,10 @@ printf '%s\n' "Hej, vad kan du?" "Lista mina ärenden." \
 Kommandon i chatten: `/tools` (lista verktyg), `/reset` (nollställ historik), `/quit`.
 
 Flaggor: `--system <fil>` (systemprompt/skill), `--transcript <fil>`,
-`--tools a,b,c` (visa bara en delmängd av verktygen — approximerar per-assistent-scoping).
+`--tools a,b,c` (visa bara en delmängd av verktygen — approximerar per-assistent-scoping),
+`--list-tools [--json]` (anslut, skriv ut hela verktygsytan och avsluta — inget LLM-anrop;
+för att versionsstämpla vilken yta som testades), `--fail-on-tool-error` (låt ett verktygsfel
+grinda körningen rött, exit≠0).
 
 ## Status
 
