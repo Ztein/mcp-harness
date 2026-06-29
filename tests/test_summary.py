@@ -9,7 +9,7 @@ inte en misslyckad tur.
 from __future__ import annotations
 
 from mcp_harness.engine import RunSummary, tally_turn
-from mcp_harness.events import AssistantText, ToolCall, ToolResult, TurnError
+from mcp_harness.events import AssistantText, Event, ToolCall, ToolResult, TurnError
 
 
 def test_summary_counts_turns_and_calls() -> None:
@@ -48,4 +48,43 @@ def test_tool_error_is_not_a_failed_turn() -> None:
         ],
     )
     assert s.failed_turns == 0
+    assert s.exit_code == 0
+
+
+def _turn_with_tool_error() -> list[Event]:
+    return [
+        ToolCall(name="boom", arguments={}, call_id="c1"),
+        ToolResult(call_id="c1", name="boom", text="fel", is_error=True),
+        AssistantText(text="hanterat"),
+    ]
+
+
+def test_tool_error_counted_in_summary() -> None:
+    # F3: tool-fel ska aggregeras och synas — även om turen i övrigt lyckades.
+    s = RunSummary()
+    tally_turn(s, _turn_with_tool_error())
+    assert s.tool_errors == 1
+    assert "1 verktygsfel" in s.line()
+
+
+def test_tool_error_does_not_gate_by_default() -> None:
+    # Default: ett hanterat tool-fel grindar inte körningen rött (bakåtkompat).
+    s = RunSummary()
+    tally_turn(s, _turn_with_tool_error())
+    assert s.exit_code == 0
+
+
+def test_fail_on_tool_error_flag_gates() -> None:
+    # Med opt-in-policyn blir exit ≠0 vid ≥1 tool-fel.
+    s = RunSummary(fail_on_tool_error=True)
+    tally_turn(s, _turn_with_tool_error())
+    assert s.tool_errors == 1
+    assert s.exit_code == 1
+
+
+def test_summary_and_exit_consistent_no_phantom_gate() -> None:
+    # Ingen "exit 0 + grindat fel": utan tool-fel grindar flaggan ingenting.
+    s = RunSummary(fail_on_tool_error=True)
+    tally_turn(s, [AssistantText(text="ok")])
+    assert s.tool_errors == 0
     assert s.exit_code == 0
