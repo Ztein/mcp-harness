@@ -9,7 +9,7 @@ inte en misslyckad tur.
 from __future__ import annotations
 
 from mcp_harness.engine import RunSummary, tally_turn
-from mcp_harness.events import AssistantText, ToolCall, ToolResult, TurnError
+from mcp_harness.events import AssistantText, Event, ToolCall, ToolResult, TurnError
 
 
 def test_summary_counts_turns_and_calls() -> None:
@@ -51,7 +51,7 @@ def test_tool_error_is_not_a_failed_turn() -> None:
     assert s.exit_code == 0
 
 
-def _turn_with_tool_error() -> list[object]:
+def _turn_with_tool_error() -> list[Event]:
     return [
         ToolCall(name="boom", arguments={}, call_id="c1"),
         ToolResult(call_id="c1", name="boom", text="fel", is_error=True),
