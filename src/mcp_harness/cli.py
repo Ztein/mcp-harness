@@ -214,6 +214,7 @@ async def main(
     approximation_note: str = "",
     attachments: list[Attachment] | None = None,
     params: dict[str, Any] | None = None,
+    fail_on_tool_error: bool = False,
 ) -> RunSummary:
     async with AsyncExitStack() as stack:
         sessions, per_server = await _connect_all(stack, servers)
@@ -273,7 +274,7 @@ async def main(
         # Headless: i piped läge (ingen TTY) skrivs ingen interaktiv prompt som
         # annars skräpar ner loggen (T022).
         prompt = "\n> " if sys.stdin.isatty() else ""
-        summary = RunSummary()
+        summary = RunSummary(fail_on_tool_error=fail_on_tool_error)
         messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
         while True:
             user = await _read(prompt)
@@ -392,6 +393,12 @@ def cli() -> None:
     parser.add_argument(
         "--seed", type=int, help="Sätt seed (där modellen tillåter) och registrera den i headern."
     )
+    parser.add_argument(
+        "--fail-on-tool-error",
+        action="store_true",
+        help="Låt ett verktygsfel (is_error) grinda körningen rött (exit≠0). "
+        "Default: tool-fel rapporteras i sammanfattningen men ändrar inte exit-koden.",
+    )
     args = parser.parse_args()
     profile = load_profile(args.profile)
     # Profilen ramar skillen (runt, inte över) och kan scope:a verktyg.
@@ -435,6 +442,7 @@ def cli() -> None:
                 approximation_note=profile.approximation_note,
                 attachments=[load_attachment(f) for f in (args.attach or [])],
                 params=params,
+                fail_on_tool_error=args.fail_on_tool_error,
             )
         )
     finally:

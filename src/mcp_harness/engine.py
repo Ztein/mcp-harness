@@ -34,29 +34,43 @@ DEFAULT_MAX_TOOL_CALLS = 50
 
 @dataclass
 class RunSummary:
-    """Aggregerat utfall över en körning — gör den green/röd programmatiskt (T022)."""
+    """Aggregerat utfall över en körning — gör den green/röd programmatiskt (T022).
+
+    ``tool_errors`` räknar verktygsfel (``is_error``) separat från ``failed_turns``
+    (T024): de *rapporteras* alltid, men grindar exit-koden bara när
+    ``fail_on_tool_error`` är satt — så att dagens beteende (modellen får hantera
+    ett verktygsfel och gå vidare) inte tyst bryts."""
 
     turns: int = 0
     tool_calls: int = 0
     failed_turns: int = 0
+    tool_errors: int = 0
+    fail_on_tool_error: bool = False
 
     @property
     def exit_code(self) -> int:
-        """0 om alla turer lyckades, annars 1 (PRD §11)."""
-        return 1 if self.failed_turns else 0
+        """0 om alla turer lyckades; 1 vid slutligt turfel, eller vid tool-fel om
+        ``--fail-on-tool-error`` är satt (PRD §11, T024)."""
+        if self.failed_turns:
+            return 1
+        if self.fail_on_tool_error and self.tool_errors:
+            return 1
+        return 0
 
     def line(self) -> str:
         return (
             f"Sammanfattning: {self.turns} turer, {self.tool_calls} verktygsanrop, "
-            f"{self.failed_turns} misslyckade turer."
+            f"{self.tool_errors} verktygsfel, {self.failed_turns} misslyckade turer."
         )
 
 
 def tally_turn(summary: RunSummary, events: list[Event]) -> None:
     """Räkna in en turs händelser. En tur är misslyckad endast om dess sista
-    händelse är ett ``TurnError`` (ett hanterat verktygsfel räknas inte)."""
+    händelse är ett ``TurnError`` (ett hanterat verktygsfel räknas inte). Tool-fel
+    räknas separat i ``tool_errors`` (T024)."""
     summary.turns += 1
     summary.tool_calls += sum(isinstance(e, ToolCall) for e in events)
+    summary.tool_errors += sum(isinstance(e, ToolResult) and e.is_error for e in events)
     if events and isinstance(events[-1], TurnError):
         summary.failed_turns += 1
 
