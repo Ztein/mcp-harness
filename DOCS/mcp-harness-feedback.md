@@ -90,6 +90,18 @@ Topp-3 önskemål, i prioordning:
 - **Förslag på riktning:** en `--list-tools`(`--json`) som ansluter, skriver ut
   schemat och avslutar. Bra för att versionsstämpla "vilken yta testades".
 
+### F5 — Vassare LLM-felmeddelande  · prio: MEDEL
+- **Observation:** LLM-felraden fungerar men är trubbig för agent-/regressions-
+  körning. Feltyperna skiljs inte åt, och en lång tyst väntan (~228 s) föregår
+  fail.
+- **Förslag på riktning:**
+  - **Skilj feltyp** — timeout vs auth (401/403) vs 5xx vs connection — med en
+    kort handlingsbar rad ("endpoint svarar inte inom Ns — kontrollera
+    LLM_BASE_URL/last").
+  - **Kortare default-timeout + snabb fail** på icke-transienta fel (auth retras
+    inte). Vi har redan retry; det efterfrågade är *snabbare/tydligare fail*.
+- **Status:** byggt som T026 (typmedvetna fel + `--timeout`, fail-fast på 4xx).
+
 ---
 
 ## Icke-problem (mätt — så ni slipper jaga spöken)

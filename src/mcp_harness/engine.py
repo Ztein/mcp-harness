@@ -20,6 +20,7 @@ from typing import Any
 from mcp.types import CallToolResult, TextContent
 
 from .events import AssistantText, Event, ToolCall, ToolResult, TurnError
+from .llm import LlmError
 
 # En LlmFn tar (messages, tools) och returnerar assistent-meddelandet (med ev.
 # tool_calls). Synkron — motorn bryr sig inte om hur anropet görs.
@@ -120,6 +121,9 @@ async def run_turn(
     while True:
         try:
             message = llm(messages, oai_tools)
+        except LlmError as exc:  # redan kurerat, handlingsbart (T026) — visa verbatim
+            events.append(TurnError(message=str(exc)))
+            return events
         except Exception as exc:  # transient LLM-fel blir en händelse, inte krasch
             events.append(TurnError(message=f"LLM-anrop misslyckades: {exc}"))
             return events
