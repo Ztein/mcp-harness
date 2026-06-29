@@ -35,7 +35,8 @@ Flaggor: `--system <fil>` (systemprompt/skill), `--transcript <fil>`,
 `--tools a,b,c` (visa bara en delmängd av verktygen — approximerar per-assistent-scoping),
 `--list-tools [--json]` (anslut, skriv ut hela verktygsytan och avsluta — inget LLM-anrop;
 för att versionsstämpla vilken yta som testades), `--fail-on-tool-error` (låt ett verktygsfel
-grinda körningen rött, exit≠0).
+grinda körningen rött, exit≠0), `--timeout <sek>` (per-anrops-timeout mot LLM:en, default 60 —
+lägre ger snabbare, tydligare fail; auth-fel retras inte).
 
 ## Status
 

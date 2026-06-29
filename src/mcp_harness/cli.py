@@ -77,7 +77,7 @@ def _load_system(system_arg: str | None) -> str:
 def _llm_message(messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> dict[str, Any]:
     """En LlmFn: ett chat/completions-anrop via den provider-agnostiska klienten;
     returnerar assistent-meddelandet (det motorn arbetar med)."""
-    choice: dict[str, Any] = chat_completion(messages, tools, timeout=120)["choices"][0]
+    choice: dict[str, Any] = chat_completion(messages, tools)["choices"][0]
     message: dict[str, Any] = choice["message"]
     return message
 
@@ -149,8 +149,9 @@ class MeteredLlm:
     Mäter och *registrerar* — dömer inte (PRD §7). ``begin_turn`` nollställer
     ackumulatorerna inför varje tur."""
 
-    def __init__(self, extra_params: dict[str, Any] | None = None) -> None:
+    def __init__(self, extra_params: dict[str, Any] | None = None, timeout: float = 60.0) -> None:
         self._extra = extra_params or None
+        self._timeout = timeout
         self.turn_latency_ms = 0.0
         self.turn_usage: dict[str, float] = {}
         self.turn_calls = 0
@@ -164,7 +165,7 @@ class MeteredLlm:
         self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]
     ) -> dict[str, Any]:
         t0 = time.monotonic()
-        resp = chat_completion(messages, tools, timeout=120, extra=self._extra)
+        resp = chat_completion(messages, tools, timeout=self._timeout, extra=self._extra)
         self.turn_latency_ms += (time.monotonic() - t0) * 1000
         self.turn_calls += 1
         for key, value in (resp.get("usage") or {}).items():
@@ -425,6 +426,13 @@ def cli() -> None:
         action="store_true",
         help="Maskinläsbar JSON-utdata för --list-tools (annars en kort lista).",
     )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=60.0,
+        help="Per-anrops-timeout mot LLM-endpointen i sekunder (default 60). "
+        "Lägre = snabbare, tydligare fail i agent-/regressionskörning.",
+    )
     args = parser.parse_args()
     profile = load_profile(args.profile)
     # Profilen ramar skillen (runt, inte över) och kan scope:a verktyg.
@@ -454,7 +462,7 @@ def cli() -> None:
         raise SystemExit(0)
     # Self-describing körning (T033): registrera seed/temperature och mät per tur.
     params = merge_params(_llm_params(), args.temperature, args.seed)
-    metered_llm = MeteredLlm(params)
+    metered_llm = MeteredLlm(params, timeout=args.timeout)
     fh = _open_transcript(args.transcript)
     jsonl_fh = open(args.jsonl, "a", encoding="utf-8") if args.jsonl else None
     jsonl_sink = JsonlSink(jsonl_fh) if jsonl_fh is not None else None
