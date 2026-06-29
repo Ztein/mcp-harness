@@ -82,6 +82,35 @@ def tools_fingerprint(tools: list[Tool]) -> str:
     return hashlib.sha256(blob).hexdigest()[:16]
 
 
+def tool_surface(tools: list[Tool]) -> list[dict[str, Any]]:
+    """Maskinläsbar dump av hela verktygsytan (T025): namn, beskrivning, parametrar.
+
+    Klartext-komplement till ``tools_fingerprint`` — fingeravtrycket svarar på *att*
+    ytan ändrats, det här på *vad* den bestod av. Sorterad på namn (stabil mellan
+    körningar). Beräknas på menyn modellen faktiskt ser (efter allowlist/scoping)."""
+    return [
+        {"name": t.name, "description": t.description or "", "parameters": t.inputSchema}
+        for t in sorted(tools, key=lambda t: t.name)
+    ]
+
+
+def render_tool_surface(tools: list[Tool], *, as_json: bool) -> str:
+    """Formatera verktygsytan för utskrift: JSON för maskiner, kort lista för människor."""
+    surface = tool_surface(tools)
+    if as_json:
+        return json.dumps(surface, ensure_ascii=False, indent=2, sort_keys=True)
+    lines: list[str] = []
+    for entry in surface:
+        desc = str(entry["description"]).strip().splitlines()
+        head = f"- {entry['name']}" + (f" — {desc[0]}" if desc else "")
+        lines.append(head)
+        props = (entry["parameters"] or {}).get("properties") or {}
+        for pname in sorted(props):
+            ptype = (props[pname] or {}).get("type", "?")
+            lines.append(f"    · {pname}: {ptype}")
+    return "\n".join(lines)
+
+
 def check_expected_tools(tools: list[Tool], expected: set[str]) -> None:
     """Failar hårt om verktygsmängden avviker från ``expected`` (exakt mängd).
 
