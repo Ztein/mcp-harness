@@ -149,9 +149,7 @@ class MeteredLlm:
     Mäter och *registrerar* — dömer inte (PRD §7). ``begin_turn`` nollställer
     ackumulatorerna inför varje tur."""
 
-    def __init__(
-        self, extra_params: dict[str, Any] | None = None, timeout: float = 60.0
-    ) -> None:
+    def __init__(self, extra_params: dict[str, Any] | None = None, timeout: float = 60.0) -> None:
         self._extra = extra_params or None
         self._timeout = timeout
         self.turn_latency_ms = 0.0

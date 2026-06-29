@@ -16,9 +16,7 @@ from mcp_harness.llm import LlmError, _final_message, chat_completion
 from tests.conftest import FakeLLM
 
 
-def test_auth_4xx_fails_fast_no_retry(
-    fake_llm: FakeLLM, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_auth_4xx_fails_fast_no_retry(fake_llm: FakeLLM, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("mcp_harness.llm.time.sleep", lambda _s: None)
     fake_llm.queue_status(401, times=5)  # gott om fel köade...
     with pytest.raises(LlmError):
@@ -46,9 +44,7 @@ def test_5xx_still_retried(fake_llm: FakeLLM, monkeypatch: pytest.MonkeyPatch) -
     assert len(fake_llm.requests) == 3
 
 
-def test_5xx_exhausted_actionable(
-    fake_llm: FakeLLM, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_5xx_exhausted_actionable(fake_llm: FakeLLM, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("mcp_harness.llm.time.sleep", lambda _s: None)
     fake_llm.queue_status(503, times=5)
     with pytest.raises(LlmError) as exc:
@@ -66,9 +62,7 @@ def test_timeout_message_actionable() -> None:
 def test_connection_message_actionable() -> None:
     import urllib.error
 
-    msg = _final_message(
-        urllib.error.URLError("Connection refused"), timeout=60.0, attempts=3
-    )
+    msg = _final_message(urllib.error.URLError("Connection refused"), timeout=60.0, attempts=3)
     assert "LLM_BASE_URL" in msg
 
 

@@ -86,9 +86,7 @@ def _http_message(exc: urllib.error.HTTPError) -> str:
 
 
 def _is_timeout(exc: Exception | None) -> bool:
-    return isinstance(exc, TimeoutError) or isinstance(
-        getattr(exc, "reason", None), TimeoutError
-    )
+    return isinstance(exc, TimeoutError) or isinstance(getattr(exc, "reason", None), TimeoutError)
 
 
 def _final_message(last: Exception | None, *, timeout: float, attempts: int) -> str:
@@ -178,7 +176,9 @@ def chat_completion(
                 file=sys.stderr,
             )
             time.sleep(wait)
-    category = "timeout" if _is_timeout(last) else (
-        "server" if isinstance(last, urllib.error.HTTPError) else "connection"
+    category = (
+        "timeout"
+        if _is_timeout(last)
+        else ("server" if isinstance(last, urllib.error.HTTPError) else "connection")
     )
     raise LlmError(_final_message(last, timeout=timeout, attempts=max_retries), category=category)
